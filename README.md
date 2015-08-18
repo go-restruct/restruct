@@ -1,4 +1,4 @@
-# restruct
+# restruct [![Build Status](https://travis-ci.org/johnwchadwick/restruct.svg)](https://travis-ci.org/johnwchadwick/restruct) [![codecov.io](http://codecov.io/github/johnwchadwick/restruct/coverage.svg?branch=master)](http://codecov.io/github/johnwchadwick/restruct?branch=master)
 `restruct` is a work-in-progress library for reading and writing binary data in
 Go. Similar to lunixbochs `struc` and `encoding/binary`, this library reads data
 based on the layout of structures and, like `struc`, based on what is contained
