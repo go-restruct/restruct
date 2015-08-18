@@ -54,11 +54,8 @@ func typeOfExpr(expr ast.Expr) (reflect.Type, error) {
 			}
 			return reflect.SliceOf(sub), nil
 		default:
+			// Parse length expression
 			lexpr, ok := expr.Len.(*ast.BasicLit)
-			sub, err := typeOfExpr(expr.Elt)
-			if err != nil {
-				return nil, err
-			}
 			if !ok {
 				return nil, fmt.Errorf("invalid array size expression")
 			}
@@ -66,6 +63,12 @@ func typeOfExpr(expr ast.Expr) (reflect.Type, error) {
 				return nil, fmt.Errorf("invalid array size type")
 			}
 			len, err := strconv.Atoi(lexpr.Value)
+			if err != nil {
+				return nil, err
+			}
+
+			// Parse elem type expression
+			sub, err := typeOfExpr(expr.Elt)
 			if err != nil {
 				return nil, err
 			}
