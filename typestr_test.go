@@ -1,6 +1,8 @@
 package restruct
 
 import (
+	"go/ast"
+	"go/token"
 	"reflect"
 	"testing"
 
@@ -24,7 +26,9 @@ var parseTypeTestCases = [...]ParseTypeTestCase{
 	ParseTypeTestCase{"float32", reflect.TypeOf(float32(0)), ""},
 	ParseTypeTestCase{"*float32", reflect.TypeOf((*float32)(nil)), ""},
 	ParseTypeTestCase{"[5]*float32", reflect.TypeOf([5]*float32{}), ""},
+	ParseTypeTestCase{"[5]*invalid", nil, "unknown type invalid"},
 	ParseTypeTestCase{"[][][]*float32", reflect.TypeOf([][][]*float32{}), ""},
+	ParseTypeTestCase{"[][][]*invalid", nil, "unknown type invalid"},
 
 	// Types
 	ParseTypeTestCase{"bool", reflect.TypeOf(false), ""},
@@ -71,4 +75,39 @@ func TestParseType(t *testing.T) {
 			assert.Equal(t, data.errstr, err.Error())
 		}
 	}
+}
+
+func TestBadAst(t *testing.T) {
+	// typeOfExpr should gracefully handle broken AST structures. Let's
+	// construct some.
+
+	// Array with bad length descriptor.
+	// [Bad]int32
+	badArr := ast.ArrayType{
+		Len: ast.NewIdent("Bad"),
+		Elt: ast.NewIdent("int32"),
+	}
+	typ, err := typeOfExpr(&badArr)
+	assert.Equal(t, typ, nil)
+	assert.Equal(t, err.Error(), "invalid array size expression")
+
+	// Array with bad length descriptor.
+	// ["How about that!"]int32
+	badArr = ast.ArrayType{
+		Len: &ast.BasicLit{Kind: token.STRING, Value: `"How about that!"`},
+		Elt: ast.NewIdent("int32"),
+	}
+	typ, err = typeOfExpr(&badArr)
+	assert.Equal(t, typ, nil)
+	assert.Equal(t, err.Error(), "invalid array size type")
+
+	// Array with bad length descriptor.
+	// [10ii0]int32
+	badArr = ast.ArrayType{
+		Len: &ast.BasicLit{Kind: token.INT, Value: "10ii0"},
+		Elt: ast.NewIdent("int32"),
+	}
+	typ, err = typeOfExpr(&badArr)
+	assert.Equal(t, typ, nil)
+	assert.Equal(t, err.Error(), "strconv.ParseInt: parsing \"10ii0\": invalid syntax")
 }
