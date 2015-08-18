@@ -79,19 +79,7 @@ func IsTypeTrivial(typ reflect.Type) bool {
 		}
 		return true
 	default:
-		return true
-	}
-}
-
-// Elem synthesizes a field from an element of a slice, array, or pointer.
-// If Field is not a slice, array, or pointer, FieldFromArray panics.
-func (f *Field) Elem() *Field {
-	return &Field{
-		Name:    "*" + f.Name,
-		CanSet:  f.CanSet,
-		Type:    f.Type.Elem(),
-		DefType: f.Type.Elem(),
-		Order:   f.Order,
+		return false
 	}
 }
 
