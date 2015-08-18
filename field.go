@@ -69,7 +69,7 @@ func IsTypeTrivial(typ reflect.Type) bool {
 		reflect.Complex64,
 		reflect.Complex128:
 		return true
-	case reflect.Array, reflect.Ptr, reflect.Slice:
+	case reflect.Array, reflect.Ptr:
 		return IsTypeTrivial(typ.Elem())
 	case reflect.Struct:
 		for _, field := range FieldsFromStruct(typ) {
