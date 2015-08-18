@@ -1,2 +1,6 @@
+language: go
+go:
+  - 1.5rc1
+  - tip
 after_success:
   - bash <(curl -s https://codecov.io/bash)
