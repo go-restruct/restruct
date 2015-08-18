@@ -75,3 +75,21 @@ func TestParseTag(t *testing.T) {
 		}
 	}
 }
+
+func TestMustParseTagPanicsOnError(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("Invalid tag did not panic.")
+		}
+	}()
+	MustParseTag("???")
+}
+
+func TestMustParseTagReturnsOnSuccess(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("Valid tag panicked.")
+		}
+	}()
+	MustParseTag("[128]byte,little,sizeof=Test")
+}
