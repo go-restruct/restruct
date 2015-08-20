@@ -23,7 +23,7 @@ var fieldsFromStructTestCases = []FieldsFromStructTestCase{
 			Simple int
 		}{},
 		[]Field{
-			Field{"Simple", true, intType, intType, nil},
+			Field{"Simple", 0, true, intType, intType, nil, true},
 		},
 	},
 	FieldsFromStructTestCase{
@@ -33,8 +33,8 @@ var fieldsFromStructTestCases = []FieldsFromStructTestCase{
 			After  bool
 		}{},
 		[]Field{
-			Field{"Before", true, intType, intType, nil},
-			Field{"After", true, boolType, boolType, nil},
+			Field{"Before", 0, true, intType, intType, nil, true},
+			Field{"After", 2, true, boolType, boolType, nil, true},
 		},
 	},
 	FieldsFromStructTestCase{
@@ -43,8 +43,8 @@ var fieldsFromStructTestCases = []FieldsFromStructTestCase{
 			LSBInt   int    `struct:"uint32,little"`
 		}{},
 		[]Field{
-			Field{"FixedStr", true, reflect.TypeOf([64]byte{}), strType, nil},
-			Field{"LSBInt", true, reflect.TypeOf(uint32(0)), intType, binary.LittleEndian},
+			Field{"FixedStr", 0, true, reflect.TypeOf([64]byte{}), strType, nil, true},
+			Field{"LSBInt", 1, true, reflect.TypeOf(uint32(0)), intType, binary.LittleEndian, true},
 		},
 	},
 }
