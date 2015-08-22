@@ -14,6 +14,7 @@ type Field struct {
 	Type    reflect.Type
 	DefType reflect.Type
 	Order   binary.ByteOrder
+	Skip    int
 	Trivial bool
 }
 
@@ -79,6 +80,7 @@ func FieldsFromStruct(typ reflect.Type) (result Fields) {
 			Type:    ftyp,
 			DefType: val.Type,
 			Order:   opts.Order,
+			Skip:    opts.Skip,
 			Trivial: IsTypeTrivial(ftyp),
 		})
 	}
@@ -123,37 +125,52 @@ func IsTypeTrivial(typ reflect.Type) bool {
 
 // SizeOf determines what the binary size of the field should be.
 func (f *Field) SizeOf(val reflect.Value) (size int) {
+	alen := 1
 	switch f.Type.Kind() {
 	case reflect.Int8, reflect.Uint8:
-		return 1
+		return 1 + f.Skip
 	case reflect.Int16, reflect.Uint16:
-		return 2
+		return 2 + f.Skip
 	case reflect.Int, reflect.Int32,
 		reflect.Uint, reflect.Uint32,
 		reflect.Bool, reflect.Float32:
-		return 4
+		return 4 + f.Skip
 	case reflect.Int64, reflect.Uint64,
 		reflect.Float64, reflect.Complex64:
-		return 8
+		return 8 + f.Skip
 	case reflect.Complex128:
-		return 16
-	case reflect.Array, reflect.Ptr, reflect.Slice:
+		return 16 + f.Skip
+	case reflect.Slice:
+		alen = val.Len()
+		fallthrough
+	case reflect.Array, reflect.Ptr:
+		size += f.Skip
+
+		// If array type, get length from type.
+		if f.Type.Kind() == reflect.Array {
+			alen = f.Type.Len()
+		}
+
+		// Optimization: if the array/slice is empty, bail now.
+		if alen == 0 {
+			return size
+		}
+
 		// Optimization: if the type is trivial, we only need to check the
 		// first element.
+		elem := f.Elem()
 		if f.Trivial {
-			size += f.SizeOf(val.Index(0)) * val.Len()
+			size += elem.SizeOf(reflect.Zero(f.Type.Elem())) * alen
 		} else {
-			count := val.Len()
-			for i := 0; i < count; i++ {
-				size += f.SizeOf(val.Index(i)) * val.Len()
+			for i := 0; i < alen; i++ {
+				size += elem.SizeOf(val.Index(i))
 			}
 		}
 		return size
 	case reflect.Struct:
-		if f.Trivial {
-			for _, field := range FieldsFromStruct(f.Type) {
-				size += field.SizeOf(val.Field(field.Index))
-			}
+		size += f.Skip
+		for _, field := range FieldsFromStruct(f.Type) {
+			size += field.SizeOf(val.Field(field.Index))
 		}
 		return size
 	default:

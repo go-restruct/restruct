@@ -21,8 +21,8 @@ func TestFieldsFromStruct(t *testing.T) {
 			struct {
 				Simple int
 			}{},
-			[]Field{
-				Field{"Simple", 0, true, intType, intType, nil, true},
+			Fields{
+				Field{"Simple", 0, true, intType, intType, nil, 0, true},
 			},
 		},
 		{
@@ -31,19 +31,19 @@ func TestFieldsFromStruct(t *testing.T) {
 				During string `struct:"-"`
 				After  bool
 			}{},
-			[]Field{
-				Field{"Before", 0, true, intType, intType, nil, true},
-				Field{"After", 2, true, boolType, boolType, nil, true},
+			Fields{
+				Field{"Before", 0, true, intType, intType, nil, 0, true},
+				Field{"After", 2, true, boolType, boolType, nil, 0, true},
 			},
 		},
 		{
 			struct {
-				FixedStr string `struct:"[64]byte"`
+				FixedStr string `struct:"[64]byte,skip=4"`
 				LSBInt   int    `struct:"uint32,little"`
 			}{},
-			[]Field{
-				Field{"FixedStr", 0, true, reflect.TypeOf([64]byte{}), strType, nil, true},
-				Field{"LSBInt", 1, true, reflect.TypeOf(uint32(0)), intType, binary.LittleEndian, true},
+			Fields{
+				Field{"FixedStr", 0, true, reflect.TypeOf([64]byte{}), strType, nil, 4, true},
+				Field{"LSBInt", 1, true, reflect.TypeOf(uint32(0)), intType, binary.LittleEndian, 0, true},
 			},
 		},
 	}

@@ -54,12 +54,17 @@ func TestParseTag(t *testing.T) {
 		{"sizeof=OtherField", TagOptions{SizeOf: "OtherField"}, ""},
 		{"sizeof=日本", TagOptions{SizeOf: "日本"}, ""},
 
+		// Skip
+		{"skip=4", TagOptions{Skip: 4}, ""},
+		{"skip=字", TagOptions{}, "bad skip amount"},
+
 		// Composite
-		{"uint16,little,sizeof=test",
+		{"uint16,little,sizeof=test,skip=5",
 			TagOptions{
 				Type:   reflect.TypeOf(uint16(0)),
 				Order:  binary.LittleEndian,
 				SizeOf: "test",
+				Skip:   5,
 			},
 			"",
 		},

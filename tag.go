@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -12,6 +13,7 @@ type TagOptions struct {
 	Ignore bool
 	Type   reflect.Type
 	SizeOf string
+	Skip   int
 	Order  binary.ByteOrder
 }
 
@@ -54,6 +56,12 @@ func ParseTag(tag string) (TagOptions, error) {
 			if strings.HasPrefix(part, "sizeof=") {
 				result.SizeOf = part[7:]
 				continue
+			} else if strings.HasPrefix(part, "skip=") {
+				var err error
+				result.Skip, err = strconv.Atoi(part[5:])
+				if err != nil {
+					return TagOptions{}, errors.New("bad skip amount")
+				}
 			} else {
 				typ, err := ParseType(part)
 				if err != nil {
