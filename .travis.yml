@@ -1,6 +1,6 @@
 language: go
 go:
-  - 1.5rc1
+  - 1.5
   - tip
 script:
   - go test -coverprofile=coverage.txt -covermode=atomic
