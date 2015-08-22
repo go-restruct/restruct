@@ -85,3 +85,70 @@ func TestIsTypeTrivial(t *testing.T) {
 		assert.Equal(t, test.trivial, IsTypeTrivial(reflect.TypeOf(test.input)))
 	}
 }
+
+type TestElem struct {
+	Test1 int64
+	Test2 int8
+}
+
+type TestStruct struct {
+	Sub [10]struct {
+		Sub2 struct {
+			Size  int `struct:"uint32,sizeof=Elems"`
+			Elems []TestElem
+		} `struct:"skip=4"`
+	} `struct:"skip=2"`
+	Numbers  [128]int64
+	Numbers2 []float64 `struct:"[256]float32"`
+}
+
+func TestSizeOf(t *testing.T) {
+	tests := []struct {
+		input interface{}
+		size  int
+	}{
+		{int8(0), 1},
+		{int16(0), 2},
+		{int32(0), 4},
+		{int64(0), 8},
+		{[0]int8{}, 0},
+		{[1]int8{1}, 1},
+		{[]int8{1, 2}, 2},
+		{[]int32{1, 2}, 8},
+		{[2][3]int8{}, 6},
+		{struct{}{}, 0},
+		{struct{ int8 }{}, 1},
+		{struct{ a []int8 }{[]int8{}}, 0},
+		{struct{ a [0]int8 }{[0]int8{}}, 0},
+		{struct{ a []int8 }{[]int8{1}}, 1},
+		{struct{ a [1]int8 }{[1]int8{1}}, 1},
+		{TestStruct{}, 2130},
+	}
+
+	for _, test := range tests {
+		field := FieldFromType(reflect.TypeOf(test.input))
+		assert.Equal(t, test.size, field.SizeOf(reflect.ValueOf(test.input)),
+			"bad size for input: %#v", test.input)
+	}
+}
+
+var simpleFields = FieldsFromStruct(reflect.TypeOf(TestElem{}))
+var complexFields = FieldsFromStruct(reflect.TypeOf(TestStruct{}))
+
+func BenchmarkFieldsFromStruct(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		FieldsFromStruct(reflect.TypeOf(TestStruct{}))
+	}
+}
+
+func BenchmarkSizeOfSimple(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		simpleFields.SizeOf(reflect.ValueOf(TestElem{}))
+	}
+}
+
+func BenchmarkSizeOfComplex(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		complexFields.SizeOf(reflect.ValueOf(TestStruct{}))
+	}
+}
