@@ -111,6 +111,14 @@ func TestSizeOf(t *testing.T) {
 		{int16(0), 2},
 		{int32(0), 4},
 		{int64(0), 8},
+		{uint8(0), 1},
+		{uint16(0), 2},
+		{uint32(0), 4},
+		{uint64(0), 8},
+		{float32(0), 4},
+		{float64(0), 8},
+		{complex64(0), 8},
+		{complex128(0), 16},
 		{[0]int8{}, 0},
 		{[1]int8{1}, 1},
 		{[]int8{1, 2}, 2},
@@ -123,6 +131,7 @@ func TestSizeOf(t *testing.T) {
 		{struct{ a []int8 }{[]int8{1}}, 1},
 		{struct{ a [1]int8 }{[1]int8{1}}, 1},
 		{TestStruct{}, 2130},
+		{interface{}(struct{}{}), 0},
 	}
 
 	for _, test := range tests {
