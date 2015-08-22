@@ -17,10 +17,41 @@ type Field struct {
 	Trivial bool
 }
 
+// Fields represents a structure.
+type Fields []Field
+
 var fieldCache = map[reflect.Type][]Field{}
 
+// Elem constructs a transient field representing an element of an array, slice,
+// or pointer.
+func (f *Field) Elem() Field {
+	return Field{
+		Name:    "*" + f.Name,
+		Index:   -1,
+		CanSet:  f.CanSet,
+		Type:    f.Type.Elem(),
+		DefType: f.Type.Elem(),
+		Order:   f.Order,
+		Skip:    0,
+		Trivial: f.Trivial,
+	}
+}
+
+// FieldFromType returns a field from a reflected type.
+func FieldFromType(typ reflect.Type) Field {
+	return Field{
+		Index:   -1,
+		CanSet:  true,
+		Type:    typ,
+		DefType: typ,
+		Order:   nil,
+		Skip:    0,
+		Trivial: IsTypeTrivial(typ),
+	}
+}
+
 // FieldsFromStruct returns a slice of fields for binary packing and unpacking.
-func FieldsFromStruct(typ reflect.Type) (result []Field) {
+func FieldsFromStruct(typ reflect.Type) (result Fields) {
 	if typ.Kind() != reflect.Struct {
 		panic(fmt.Errorf("tried to get fields from non-struct type %s", typ.Kind().String()))
 	}
@@ -128,4 +159,12 @@ func (f *Field) SizeOf(val reflect.Value) (size int) {
 	default:
 		return 0
 	}
+}
+
+// SizeOf returns the size of a struct.
+func (fields Fields) SizeOf(val reflect.Value) (size int) {
+	for _, field := range fields {
+		size += field.SizeOf(val.Field(field.Index))
+	}
+	return
 }

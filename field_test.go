@@ -15,7 +15,7 @@ var strType = reflect.TypeOf(string(""))
 func TestFieldsFromStruct(t *testing.T) {
 	tests := []struct {
 		input  interface{}
-		fields []Field
+		fields Fields
 	}{
 		{
 			struct {
