@@ -144,6 +144,11 @@ func TestSizeOf(t *testing.T) {
 var simpleFields = FieldsFromStruct(reflect.TypeOf(TestElem{}))
 var complexFields = FieldsFromStruct(reflect.TypeOf(TestStruct{}))
 
+func TestSizeOfFields(t *testing.T) {
+	assert.Equal(t, simpleFields.SizeOf(reflect.ValueOf(TestElem{})), 9)
+	assert.Equal(t, complexFields.SizeOf(reflect.ValueOf(TestStruct{})), 2130)
+}
+
 func BenchmarkFieldsFromStruct(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		FieldsFromStruct(reflect.TypeOf(TestStruct{}))
