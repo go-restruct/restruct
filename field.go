@@ -10,10 +10,10 @@ import (
 type Field struct {
 	Name    string
 	Index   int
-	CanSet  bool
 	Type    reflect.Type
 	DefType reflect.Type
 	Order   binary.ByteOrder
+	SIndex  int
 	Skip    int
 	Trivial bool
 }
@@ -26,13 +26,19 @@ var fieldCache = map[reflect.Type][]Field{}
 // Elem constructs a transient field representing an element of an array, slice,
 // or pointer.
 func (f *Field) Elem() Field {
+	// Special case for string types, grumble grumble.
+	defType := f.DefType
+	if defType.Kind() == reflect.String {
+		defType = reflect.TypeOf([]byte{})
+	}
+
 	return Field{
 		Name:    "*" + f.Name,
 		Index:   -1,
-		CanSet:  f.CanSet,
 		Type:    f.Type.Elem(),
-		DefType: f.Type.Elem(),
+		DefType: defType.Elem(),
 		Order:   f.Order,
+		SIndex:  -1,
 		Skip:    0,
 		Trivial: f.Trivial,
 	}
@@ -42,10 +48,10 @@ func (f *Field) Elem() Field {
 func FieldFromType(typ reflect.Type) Field {
 	return Field{
 		Index:   -1,
-		CanSet:  true,
 		Type:    typ,
 		DefType: typ,
 		Order:   nil,
+		SIndex:  -1,
 		Skip:    0,
 		Trivial: IsTypeTrivial(typ),
 	}
@@ -73,13 +79,28 @@ func FieldsFromStruct(typ reflect.Type) (result Fields) {
 			ftyp = opts.Type
 		}
 
+		// SizeOf
+		sindex := -1
+		if opts.SizeOf != "" {
+			count := typ.NumField()
+			for j := i + 1; j < count; j++ {
+				val := typ.Field(j)
+				if opts.SizeOf == val.Name {
+					sindex = j
+				}
+			}
+			if sindex == -1 {
+				panic(fmt.Errorf("couldn't find SizeOf field %s", opts.SizeOf))
+			}
+		}
+
 		result = append(result, Field{
 			Name:    val.Name,
 			Index:   i,
-			CanSet:  true,
 			Type:    ftyp,
 			DefType: val.Type,
 			Order:   opts.Order,
+			SIndex:  sindex,
 			Skip:    opts.Skip,
 			Trivial: IsTypeTrivial(ftyp),
 		})

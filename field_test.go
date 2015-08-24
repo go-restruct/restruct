@@ -22,7 +22,7 @@ func TestFieldsFromStruct(t *testing.T) {
 				Simple int
 			}{},
 			Fields{
-				Field{"Simple", 0, true, intType, intType, nil, 0, true},
+				Field{"Simple", 0, intType, intType, nil, -1, 0, true},
 			},
 		},
 		{
@@ -32,8 +32,8 @@ func TestFieldsFromStruct(t *testing.T) {
 				After  bool
 			}{},
 			Fields{
-				Field{"Before", 0, true, intType, intType, nil, 0, true},
-				Field{"After", 2, true, boolType, boolType, nil, 0, true},
+				Field{"Before", 0, intType, intType, nil, -1, 0, true},
+				Field{"After", 2, boolType, boolType, nil, -1, 0, true},
 			},
 		},
 		{
@@ -42,8 +42,34 @@ func TestFieldsFromStruct(t *testing.T) {
 				LSBInt   int    `struct:"uint32,little"`
 			}{},
 			Fields{
-				Field{"FixedStr", 0, true, reflect.TypeOf([64]byte{}), strType, nil, 4, true},
-				Field{"LSBInt", 1, true, reflect.TypeOf(uint32(0)), intType, binary.LittleEndian, 0, true},
+				Field{"FixedStr", 0, reflect.TypeOf([64]byte{}), strType, nil, -1, 4, true},
+				Field{"LSBInt", 1, reflect.TypeOf(uint32(0)), intType, binary.LittleEndian, -1, 0, true},
+			},
+		},
+		{
+			struct {
+				NumColors int32 `struct:"sizeof=Colors"`
+				Colors    [][4]uint8
+			}{},
+			Fields{
+				Field{
+					Name:    "NumColors",
+					Index:   0,
+					Type:    reflect.TypeOf(int32(0)),
+					DefType: reflect.TypeOf(int32(0)),
+					SIndex:  1,
+					Skip:    0,
+					Trivial: true,
+				},
+				Field{
+					Name:    "Colors",
+					Index:   1,
+					Type:    reflect.TypeOf([][4]uint8{}),
+					DefType: reflect.TypeOf([][4]uint8{}),
+					SIndex:  -1,
+					Skip:    0,
+					Trivial: false,
+				},
 			},
 		},
 	}
