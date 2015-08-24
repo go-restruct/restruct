@@ -1,6 +1,5 @@
 package restruct
 
-// typeOfExpr gets a type corresponding to an expression.
 import (
 	"errors"
 	"fmt"
@@ -40,6 +39,7 @@ var typeMap = map[string]reflect.Type{
 	"string":  reflect.SliceOf(reflect.TypeOf(uint8(0))),
 }
 
+// typeOfExpr gets a type corresponding to an expression.
 func typeOfExpr(expr ast.Expr) (reflect.Type, error) {
 	switch expr := expr.(type) {
 	default:
