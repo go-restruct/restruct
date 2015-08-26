@@ -80,7 +80,7 @@ func (d *decoder) read(f Field, v reflect.Value) {
 
 		// If the underlying value is a slice, initialize it.
 		if f.DefType.Kind() == reflect.Slice {
-			v.Set(reflect.MakeSlice(f.Type, l, l))
+			v.Set(reflect.MakeSlice(reflect.SliceOf(f.Type.Elem()), l, l))
 		}
 
 		switch f.DefType.Kind() {
