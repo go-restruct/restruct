@@ -7,6 +7,19 @@ in struct tags.
 **Heads up!** This code relies on Go 1.5, because it relies on a new function
 added to the reflect package (`reflect.ArrayOf`.)
 
+## Status
+
+  * All of the code needs more testing.
+  * A preliminary implementation of unpacking was created. Most of it is
+    covered by testing, but we need a lot more assertions made.
+  * There is no packing implementation yet.
+  * Struct tags specifying type overrides, sizeof fields, byte order and skip
+    values are implemented and functional for decoding.
+  * Performance is bad. This could be remedied with caching, careful profiling,
+    and hopefully at some point, code generation for packing/unpacking. Still,
+    if parsing binary data is not your bottleneck, this package should do just
+    fine.
+
 ## Priorities
 
   * __Features first__: Performance is a secondary concern. First, the program
@@ -17,7 +30,6 @@ added to the reflect package (`reflect.ArrayOf`.)
 	and slices of structs.
 
 ## Example (WIP)
-> This code does not work yet.
 
 ```go
 package main
