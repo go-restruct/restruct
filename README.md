@@ -28,13 +28,18 @@ added to the reflect package (`reflect.ArrayOf`.)
     strings and slices. It is also important that we can use embedded structs
 	and slices of structs.
 
-## Example (WIP)
+## Example
 
 ```go
 package main
 
-import "os"
-import "github.com/johnwchadwick/restruct"
+import (
+	"encoding/binary"
+	"io/ioutil"
+	"os"
+
+	"github.com/johnwchadwick/restruct"
+)
 
 type Record struct {
 	Message string `struct:[128]byte`
@@ -48,7 +53,11 @@ type Container struct {
 
 func main() {
 	var c Container
-	file, err := os.Open("records")
-	restruct.Unpack(file, &c)
+
+	file, _ := os.Open("records")
+	defer file.Close()
+	data, _ := ioutil.ReadAll(file)
+
+	restruct.Unpack(data, binary.LittleEndian, &c)
 }
 ```
