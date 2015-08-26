@@ -203,9 +203,15 @@ func TestUnpack(t *testing.T) {
 
 	for _, test := range tests {
 		v := reflect.New(reflect.TypeOf(test.value))
-		err := Unpack(test.data, binary.BigEndian, v.Interface())
 
+		// Test unpacking
+		err := Unpack(test.data, binary.BigEndian, v.Interface())
 		assert.Nil(t, err)
 		assert.Equal(t, test.value, v.Elem().Interface())
+
+		// Test packing
+		data, err := Pack(binary.BigEndian, v.Interface())
+		assert.Nil(t, err)
+		assert.Equal(t, test.data, data)
 	}
 }
