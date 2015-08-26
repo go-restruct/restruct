@@ -85,10 +85,15 @@ func (e *encoder) write(f Field, v reflect.Value) {
 
 	switch f.Type.Kind() {
 	case reflect.Array, reflect.Slice, reflect.String:
-		l := v.Len()
-		ef := f.Elem()
-		for i := 0; i < l; i++ {
-			e.write(ef, v.Index(i))
+		switch f.DefType.Kind() {
+		case reflect.Array, reflect.Slice, reflect.String:
+			ef := f.Elem()
+			l := v.Len()
+			for i := 0; i < l; i++ {
+				e.write(ef, v.Index(i))
+			}
+		default:
+			panic(fmt.Errorf("invalid array cast type: %s", f.DefType.String()))
 		}
 
 	case reflect.Struct:

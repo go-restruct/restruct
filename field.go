@@ -184,12 +184,15 @@ func (f *Field) SizeOf(val reflect.Value) (size int) {
 
 		// Optimization: if the type is trivial, we only need to check the
 		// first element.
-		elem := f.Elem()
-		if f.Trivial {
-			size += elem.SizeOf(reflect.Zero(f.Type.Elem())) * alen
-		} else {
-			for i := 0; i < alen; i++ {
-				size += elem.SizeOf(val.Index(i))
+		switch f.DefType.Kind() {
+		case reflect.Slice, reflect.String, reflect.Array, reflect.Ptr:
+			elem := f.Elem()
+			if f.Trivial {
+				size += elem.SizeOf(reflect.Zero(f.Type.Elem())) * alen
+			} else {
+				for i := 0; i < alen; i++ {
+					size += elem.SizeOf(val.Index(i))
+				}
 			}
 		}
 		return size
