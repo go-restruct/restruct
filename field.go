@@ -26,17 +26,22 @@ var fieldCache = map[reflect.Type][]Field{}
 // Elem constructs a transient field representing an element of an array, slice,
 // or pointer.
 func (f *Field) Elem() Field {
-	// Special case for string types, grumble grumble.
-	defType := f.DefType
-	if defType.Kind() == reflect.String {
-		defType = reflect.TypeOf([]byte{})
+	// Special cases for string types, grumble grumble.
+	t := f.Type
+	if t.Kind() == reflect.String {
+		t = reflect.TypeOf([]byte{})
+	}
+
+	dt := f.DefType
+	if dt.Kind() == reflect.String {
+		dt = reflect.TypeOf([]byte{})
 	}
 
 	return Field{
 		Name:    "*" + f.Name,
 		Index:   -1,
-		Type:    f.Type.Elem(),
-		DefType: defType.Elem(),
+		Type:    t.Elem(),
+		DefType: dt.Elem(),
 		Order:   f.Order,
 		SIndex:  -1,
 		Skip:    0,
