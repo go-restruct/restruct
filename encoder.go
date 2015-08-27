@@ -42,11 +42,6 @@ func (e *encoder) writeS32(x int32) { e.write32(uint32(x)) }
 
 func (e *encoder) writeS64(x int64) { e.write64(uint64(x)) }
 
-func (e *encoder) writeb(x []byte) {
-	copy(e.buf, x) // Is this idiomatic Go?
-	e.buf = e.buf[len(x):]
-}
-
 func (e *encoder) skipn(count int) {
 	e.buf = e.buf[count:]
 }

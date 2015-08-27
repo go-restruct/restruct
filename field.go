@@ -167,7 +167,12 @@ func (f *Field) SizeOf(val reflect.Value) (size int) {
 	case reflect.Complex128:
 		return 16 + f.Skip
 	case reflect.Slice, reflect.String:
-		alen = val.Len()
+		switch f.DefType.Kind() {
+		case reflect.Slice, reflect.String, reflect.Array, reflect.Ptr:
+			alen = val.Len()
+		default:
+			return 0
+		}
 		fallthrough
 	case reflect.Array, reflect.Ptr:
 		size += f.Skip

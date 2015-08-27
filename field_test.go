@@ -76,7 +76,7 @@ func TestFieldsFromStruct(t *testing.T) {
 
 	for _, test := range tests {
 		fields := FieldsFromStruct(reflect.TypeOf(test.input))
-		assert.Equal(t, fields, test.fields)
+		assert.Equal(t, test.fields, fields)
 	}
 }
 
@@ -87,6 +87,21 @@ func TestFieldsFromNonStructPanics(t *testing.T) {
 		}
 	}()
 	FieldsFromStruct(reflect.TypeOf(0))
+}
+
+func TestFieldsFromBrokenStruct(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Error("Broken struct did not panic.")
+		}
+		assert.Equal(t, "couldn't find SizeOf field Nonexistant", r.(error).Error())
+	}()
+
+	badSize := struct {
+		Test int64 `struct:"sizeof=Nonexistant"`
+	}{}
+	FieldsFromStruct(reflect.TypeOf(badSize))
 }
 
 func TestIsTypeTrivial(t *testing.T) {
@@ -158,6 +173,7 @@ func TestSizeOf(t *testing.T) {
 		{struct{ a [1]int8 }{[1]int8{1}}, 1},
 		{TestStruct{}, 2130},
 		{interface{}(struct{}{}), 0},
+		{struct{ Test interface{} }{}, 0},
 	}
 
 	for _, test := range tests {

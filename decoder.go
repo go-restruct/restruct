@@ -112,12 +112,12 @@ func (d *decoder) read(f Field, v reflect.Value) {
 		d.struc = struc
 
 	case reflect.Slice, reflect.String:
-		l := v.Len()
-
 		switch f.DefType.Kind() {
 		case reflect.String:
+			l := v.Len()
 			v.SetString(string(d.readn(l)))
 		case reflect.Slice, reflect.Array:
+			l := v.Len()
 			ef := f.Elem()
 			for i := 0; i < l; i++ {
 				d.read(ef, v.Index(i))
