@@ -1,3 +1,23 @@
+/*
+Package restruct implements packing and unpacking of raw binary formats.
+
+Structures can be created with struct tags annotating the on-disk or in-memory
+layout of the structure, using the "struct" struct tag, like so:
+
+	struct {
+		Length int `struct:"int32,sizeof=Packets"`
+		Packets []struct{
+			Source    string    `struct:"[16]byte"`
+			Timestamp int       `struct:"int32,big"`
+			Data      [256]byte `struct:"skip=8"`
+		}
+	}
+
+To unpack data in memory to this structure, simply use Unpack with a byte slice:
+
+	msg := Message{}
+	restruct.Unpack(data, binary.LittleEndian, &msg)
+*/
 package restruct
 
 import (
