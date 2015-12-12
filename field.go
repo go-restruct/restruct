@@ -6,6 +6,11 @@ import (
 	"reflect"
 )
 
+// Sizer is a type which has a defined size in binary.
+type Sizer interface {
+	SizeOf() int
+}
+
 // Field represents a structure field, similar to reflect.StructField.
 type Field struct {
 	Name    string
@@ -69,8 +74,14 @@ func FieldsFromStruct(typ reflect.Type) (result Fields) {
 	}
 
 	count := typ.NumField()
+
 	for i := 0; i < count; i++ {
 		val := typ.Field(i)
+
+		// Skip unexported names (except _)
+		if val.PkgPath != "" && val.Name != "_" {
+			continue
+		}
 
 		// Parse struct tag
 		opts := MustParseTag(val.Tag.Get("struct"))
@@ -151,6 +162,19 @@ func IsTypeTrivial(typ reflect.Type) bool {
 
 // SizeOf determines what the binary size of the field should be.
 func (f *Field) SizeOf(val reflect.Value) (size int) {
+	if f.Name != "_" {
+		if s, ok := val.Interface().(Sizer); ok {
+			return s.SizeOf()
+		}
+	} else {
+		// Non-trivial, unnamed fields do not make sense. You can't set a field
+		// with no name, so the elements can't possibly differ.
+		// N.B.: Though skip will still work, use struct{} instead for skip.
+		if !IsTypeTrivial(val.Type()) {
+			return f.Skip
+		}
+	}
+
 	alen := 1
 	switch f.Type.Kind() {
 	case reflect.Int8, reflect.Uint8:

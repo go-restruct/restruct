@@ -7,6 +7,13 @@ import (
 	"reflect"
 )
 
+// Packer is a type capable of packing a native value into a binary
+// representation.
+type Packer interface {
+	Sizer
+	Pack(order binary.ByteOrder) ([]byte, error)
+}
+
 type encoder struct {
 	order   binary.ByteOrder
 	buf     []byte
@@ -42,6 +49,10 @@ func (e *encoder) writeS32(x int32) { e.write32(uint32(x)) }
 
 func (e *encoder) writeS64(x int64) { e.write64(uint64(x)) }
 
+func (e *encoder) writen(b []byte) {
+	e.buf = append(e.buf, b...)
+}
+
 func (e *encoder) skipn(count int) {
 	e.buf = e.buf[count:]
 }
@@ -51,6 +62,19 @@ func (e *encoder) skip(f Field, v reflect.Value) {
 }
 
 func (e *encoder) write(f Field, v reflect.Value) {
+	if f.Name != "_" {
+		if s, ok := v.Interface().(Packer); ok {
+			data, err := s.Pack(e.order)
+			if err != nil {
+				panic(err)
+			}
+			e.writen(data)
+		}
+	} else {
+		e.skipn(f.SizeOf(v))
+		return
+	}
+
 	struc := e.struc
 	sfields := e.sfields
 	order := e.order

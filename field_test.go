@@ -117,8 +117,8 @@ func TestIsTypeTrivial(t *testing.T) {
 		{[]int8{}, false},
 		{struct{}{}, true},
 		{struct{ int8 }{}, true},
-		{struct{ a []int8 }{[]int8{}}, false},
-		{struct{ a [0]int8 }{[0]int8{}}, true},
+		{struct{ A []int8 }{[]int8{}}, false},
+		{struct{ A [0]int8 }{[0]int8{}}, true},
 		{(*interface{})(nil), false},
 	}
 
@@ -166,14 +166,40 @@ func TestSizeOf(t *testing.T) {
 		{[]int32{1, 2}, 8},
 		{[2][3]int8{}, 6},
 		{struct{}{}, 0},
-		{struct{ int8 }{}, 1},
-		{struct{ a []int8 }{[]int8{}}, 0},
-		{struct{ a [0]int8 }{[0]int8{}}, 0},
-		{struct{ a []int8 }{[]int8{1}}, 1},
-		{struct{ a [1]int8 }{[1]int8{1}}, 1},
+		{struct{ A int8 }{}, 1},
+		{struct{ A []int8 }{[]int8{}}, 0},
+		{struct{ A [0]int8 }{[0]int8{}}, 0},
+		{struct{ A []int8 }{[]int8{1}}, 1},
+		{struct{ A [1]int8 }{[1]int8{1}}, 1},
 		{TestStruct{}, 2130},
 		{interface{}(struct{}{}), 0},
 		{struct{ Test interface{} }{}, 0},
+
+		// Unexported fields test
+		{struct{ a int8 }{}, 0},
+		{struct{ a []int8 }{[]int8{}}, 0},
+		{struct{ a [0]int8 }{[0]int8{}}, 0},
+		{struct{ a []int8 }{[]int8{1}}, 0},
+		{struct{ a [1]int8 }{[1]int8{1}}, 0},
+
+		// Trivial unnamed fields test
+		{struct{ _ [1]int8 }{}, 1},
+		{struct {
+			_ [1]int8 `struct:"skip=4"`
+		}{}, 5},
+
+		// Non-trivial unnamed fields test
+		{struct{ _ []interface{} }{}, 0},
+		{struct{ _ [1]interface{} }{}, 0},
+		{struct {
+			_ [1]interface{} `struct:"skip=4"`
+		}{}, 4},
+		{struct {
+			_ [4]struct {
+				_ [4]struct{} `struct:"skip=4"`
+			} `struct:"skip=4"`
+		}{}, 20},
+		{struct{ T string }{"yeehaw"}, 6},
 	}
 
 	for _, test := range tests {
