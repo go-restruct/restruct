@@ -8,7 +8,10 @@ import (
 )
 
 // Unpacker is a type capable of unpacking a binary representation of itself
-// into a native representation.
+// into a native representation. The Unpack function is expected to consume
+// a number of bytes from the buffer, then return a slice of the remaining
+// bytes in the buffer. You may use a pointer receiver even if the type is
+// used by value.
 type Unpacker interface {
 	Unpack(buf []byte, order binary.ByteOrder) ([]byte, error)
 }

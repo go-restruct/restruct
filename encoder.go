@@ -8,7 +8,12 @@ import (
 )
 
 // Packer is a type capable of packing a native value into a binary
-// representation.
+// representation. The Pack function is expected to overwrite a number of
+// bytes in buf then return a slice of the remaining buffer. Note that you
+// must also implement SizeOf, and returning an incorrect SizeOf will cause
+// the encoder to crash. The SizeOf should be equal to the number of bytes
+// consumed from the buffer slice in Pack. You may use a pointer receiver even
+// if the type is used by value.
 type Packer interface {
 	Sizer
 	Pack(buf []byte, order binary.ByteOrder) ([]byte, error)

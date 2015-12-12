@@ -7,7 +7,11 @@ import (
 	"sync"
 )
 
-// Sizer is a type which has a defined size in binary.
+// Sizer is a type which has a defined size in binary. The SizeOf function
+// returns how many bytes the type will consume in memory. This is used during
+// encoding for allocation and therefore must equal the exact number of bytes
+// the encoded form needs. You may use a pointer receiver even if the type is
+// used by value.
 type Sizer interface {
 	SizeOf() int
 }
@@ -24,7 +28,7 @@ type field struct {
 	Trivial bool
 }
 
-// Fields represents a structure.
+// fields represents a structure.
 type fields []field
 
 var fieldCache = map[reflect.Type][]field{}
