@@ -315,3 +315,24 @@ func TestUnpackBrokenArray(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, "invalid array cast type: int16", err.Error())
 }
+
+func TestUnpackFastPath(t *testing.T) {
+	v := struct {
+		Size uint8 `struct:"sizeof=Data"`
+		Data []byte
+	}{}
+	Unpack([]byte("\x04Data"), binary.LittleEndian, &v)
+	assert.Equal(t, 4, int(v.Size))
+	assert.Equal(t, "Data", string(v.Data))
+}
+
+func BenchmarkFastPath(b *testing.B) {
+	v := struct {
+		Size uint8 `struct:"sizeof=Data"`
+		Data []byte
+	}{}
+	data := []byte(" @?>=<;:9876543210/.-,+*)('&%$#\"! ")
+	for i := 0; i < b.N; i++ {
+		Unpack(data, binary.LittleEndian, &v)
+	}
+}
