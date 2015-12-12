@@ -338,6 +338,7 @@ func BenchmarkFastPath(b *testing.B) {
 	}
 }
 
+// Test custom packing
 type CString string
 
 func (s *CString) SizeOf() int {
@@ -378,4 +379,37 @@ func TestCustomPacking(t *testing.T) {
 	err = Unpack(b, binary.LittleEndian, &y)
 	assert.Nil(t, err)
 	assert.Equal(t, "Test string! テスト。", string(y))
+}
+
+// Test custom packing with non-pointer reciever
+type Custom struct {
+	A *int
+}
+
+func (s Custom) SizeOf() int {
+	return 4
+}
+
+func (s Custom) Unpack(buf []byte, order binary.ByteOrder) ([]byte, error) {
+	*s.A = int(order.Uint32(buf[0:4]))
+	return buf[4:], nil
+}
+
+func (s Custom) Pack(buf []byte, order binary.ByteOrder) ([]byte, error) {
+	order.PutUint32(buf[0:4], uint32(*s.A))
+	return buf[4:], nil
+}
+
+func TestCustomPackingNonPointer(t *testing.T) {
+	c := Custom{new(int)}
+	*c.A = 32
+
+	b, err := Pack(binary.LittleEndian, c)
+	assert.Nil(t, err)
+	assert.Equal(t, []byte{0x20, 0x00, 0x00, 0x00}, b)
+
+	d := Custom{new(int)}
+	err = Unpack(b, binary.LittleEndian, d)
+	assert.Nil(t, err)
+	assert.Equal(t, 32, *d.A)
 }

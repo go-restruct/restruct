@@ -61,7 +61,10 @@ func Unpack(data []byte, order binary.ByteOrder, v interface{}) (err error) {
 		}
 	}()
 
-	val := reflect.ValueOf(v).Elem()
+	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
 	d := decoder{order: order, buf: data}
 	d.read(fieldFromType(val.Type()), val)
 
@@ -82,7 +85,10 @@ func Pack(order binary.ByteOrder, v interface{}) (data []byte, err error) {
 		}
 	}()
 
-	val := reflect.ValueOf(v).Elem()
+	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
 	f := fieldFromType(val.Type())
 	data = make([]byte, f.SizeOf(val))
 	e := encoder{order: order, buf: data}
