@@ -12,8 +12,8 @@ type Sizer interface {
 	SizeOf() int
 }
 
-// Field represents a structure field, similar to reflect.StructField.
-type Field struct {
+// field represents a structure field, similar to reflect.StructField.
+type field struct {
 	Name    string
 	Index   int
 	Type    reflect.Type
@@ -25,14 +25,14 @@ type Field struct {
 }
 
 // Fields represents a structure.
-type Fields []Field
+type fields []field
 
-var fieldCache = map[reflect.Type][]Field{}
+var fieldCache = map[reflect.Type][]field{}
 var cacheMutex = sync.RWMutex{}
 
 // Elem constructs a transient field representing an element of an array, slice,
 // or pointer.
-func (f *Field) Elem() Field {
+func (f *field) Elem() field {
 	// Special cases for string types, grumble grumble.
 	t := f.Type
 	if t.Kind() == reflect.String {
@@ -44,7 +44,7 @@ func (f *Field) Elem() Field {
 		dt = reflect.TypeOf([]byte{})
 	}
 
-	return Field{
+	return field{
 		Name:    "*" + f.Name,
 		Index:   -1,
 		Type:    t.Elem(),
@@ -56,21 +56,21 @@ func (f *Field) Elem() Field {
 	}
 }
 
-// FieldFromType returns a field from a reflected type.
-func FieldFromType(typ reflect.Type) Field {
-	return Field{
+// fieldFromType returns a field from a reflected type.
+func fieldFromType(typ reflect.Type) field {
+	return field{
 		Index:   -1,
 		Type:    typ,
 		DefType: typ,
 		Order:   nil,
 		SIndex:  -1,
 		Skip:    0,
-		Trivial: IsTypeTrivial(typ),
+		Trivial: isTypeTrivial(typ),
 	}
 }
 
 // fieldsFromStruct returns a slice of fields for binary packing and unpacking.
-func fieldsFromStruct(typ reflect.Type) (result Fields) {
+func fieldsFromStruct(typ reflect.Type) (result fields) {
 	if typ.Kind() != reflect.Struct {
 		panic(fmt.Errorf("tried to get fields from non-struct type %s", typ.Kind().String()))
 	}
@@ -86,7 +86,7 @@ func fieldsFromStruct(typ reflect.Type) (result Fields) {
 		}
 
 		// Parse struct tag
-		opts := MustParseTag(val.Tag.Get("struct"))
+		opts := mustParseTag(val.Tag.Get("struct"))
 		if opts.Ignore {
 			continue
 		}
@@ -112,7 +112,7 @@ func fieldsFromStruct(typ reflect.Type) (result Fields) {
 			}
 		}
 
-		result = append(result, Field{
+		result = append(result, field{
 			Name:    val.Name,
 			Index:   i,
 			Type:    ftyp,
@@ -120,14 +120,14 @@ func fieldsFromStruct(typ reflect.Type) (result Fields) {
 			Order:   opts.Order,
 			SIndex:  sindex,
 			Skip:    opts.Skip,
-			Trivial: IsTypeTrivial(ftyp),
+			Trivial: isTypeTrivial(ftyp),
 		})
 	}
 
 	return
 }
 
-func cachedFieldsFromStruct(typ reflect.Type) (result Fields) {
+func cachedFieldsFromStruct(typ reflect.Type) (result fields) {
 	cacheMutex.RLock()
 	result, ok := fieldCache[typ]
 	cacheMutex.RUnlock()
@@ -145,8 +145,8 @@ func cachedFieldsFromStruct(typ reflect.Type) (result Fields) {
 	return
 }
 
-// IsTypeTrivial determines if a given type is constant-size.
-func IsTypeTrivial(typ reflect.Type) bool {
+// isTypeTrivial determines if a given type is constant-size.
+func isTypeTrivial(typ reflect.Type) bool {
 	switch typ.Kind() {
 	case reflect.Bool,
 		reflect.Int,
@@ -166,10 +166,10 @@ func IsTypeTrivial(typ reflect.Type) bool {
 		reflect.Complex128:
 		return true
 	case reflect.Array, reflect.Ptr:
-		return IsTypeTrivial(typ.Elem())
+		return isTypeTrivial(typ.Elem())
 	case reflect.Struct:
 		for _, field := range cachedFieldsFromStruct(typ) {
-			if !IsTypeTrivial(field.Type) {
+			if !isTypeTrivial(field.Type) {
 				return false
 			}
 		}
@@ -180,7 +180,7 @@ func IsTypeTrivial(typ reflect.Type) bool {
 }
 
 // SizeOf determines what the binary size of the field should be.
-func (f *Field) SizeOf(val reflect.Value) (size int) {
+func (f *field) SizeOf(val reflect.Value) (size int) {
 	if f.Name != "_" {
 		if s, ok := val.Interface().(Sizer); ok {
 			return s.SizeOf()
@@ -189,7 +189,7 @@ func (f *Field) SizeOf(val reflect.Value) (size int) {
 		// Non-trivial, unnamed fields do not make sense. You can't set a field
 		// with no name, so the elements can't possibly differ.
 		// N.B.: Though skip will still work, use struct{} instead for skip.
-		if !IsTypeTrivial(val.Type()) {
+		if !isTypeTrivial(val.Type()) {
 			return f.Skip
 		}
 	}
@@ -256,7 +256,7 @@ func (f *Field) SizeOf(val reflect.Value) (size int) {
 }
 
 // SizeOf returns the size of a struct.
-func (fields Fields) SizeOf(val reflect.Value) (size int) {
+func (fields fields) SizeOf(val reflect.Value) (size int) {
 	for _, field := range fields {
 		size += field.SizeOf(val.Field(field.Index))
 	}

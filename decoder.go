@@ -18,7 +18,7 @@ type decoder struct {
 	order   binary.ByteOrder
 	buf     []byte
 	struc   reflect.Value
-	sfields []Field
+	sfields []field
 }
 
 func (d *decoder) read8() uint8 {
@@ -63,11 +63,11 @@ func (d *decoder) skipn(count int) {
 	d.buf = d.buf[count:]
 }
 
-func (d *decoder) skip(f Field, v reflect.Value) {
+func (d *decoder) skip(f field, v reflect.Value) {
 	d.skipn(f.SizeOf(v))
 }
 
-func (d *decoder) read(f Field, v reflect.Value) {
+func (d *decoder) read(f field, v reflect.Value) {
 	if f.Name != "_" {
 		if s, ok := v.Interface().(Unpacker); ok {
 			err := s.Unpack(d.readn(s.SizeOf()), d.order)

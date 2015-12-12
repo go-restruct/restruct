@@ -71,7 +71,7 @@ func TestParseType(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		typ, err := ParseType(test.input)
+		typ, err := parseType(test.input)
 		if typ != nil {
 			assert.Equal(t, test.typ.String(), typ.String())
 		}

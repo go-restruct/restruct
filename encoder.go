@@ -18,7 +18,7 @@ type encoder struct {
 	order   binary.ByteOrder
 	buf     []byte
 	struc   reflect.Value
-	sfields []Field
+	sfields []field
 }
 
 func (e *encoder) write8(x uint8) {
@@ -57,11 +57,11 @@ func (e *encoder) skipn(count int) {
 	e.buf = e.buf[count:]
 }
 
-func (e *encoder) skip(f Field, v reflect.Value) {
+func (e *encoder) skip(f field, v reflect.Value) {
 	e.skipn(f.SizeOf(v))
 }
 
-func (e *encoder) write(f Field, v reflect.Value) {
+func (e *encoder) write(f field, v reflect.Value) {
 	if f.Name != "_" {
 		if s, ok := v.Interface().(Packer); ok {
 			data, err := s.Pack(e.order)

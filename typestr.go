@@ -95,8 +95,8 @@ func typeOfExpr(expr ast.Expr) (reflect.Type, error) {
 	}
 }
 
-// ParseType parses a Golang type string and returns a reflect.Type.
-func ParseType(typ string) (reflect.Type, error) {
+// parseType parses a Golang type string and returns a reflect.Type.
+func parseType(typ string) (reflect.Type, error) {
 	expr, err := parser.ParseExpr(typ)
 	if err != nil {
 		return nil, errors.New("parsing error")

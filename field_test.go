@@ -15,14 +15,14 @@ var strType = reflect.TypeOf(string(""))
 func TestFieldsFromStruct(t *testing.T) {
 	tests := []struct {
 		input  interface{}
-		fields Fields
+		fields fields
 	}{
 		{
 			struct {
 				Simple int
 			}{},
-			Fields{
-				Field{"Simple", 0, intType, intType, nil, -1, 0, true},
+			fields{
+				field{"Simple", 0, intType, intType, nil, -1, 0, true},
 			},
 		},
 		{
@@ -31,9 +31,9 @@ func TestFieldsFromStruct(t *testing.T) {
 				During string `struct:"-"`
 				After  bool
 			}{},
-			Fields{
-				Field{"Before", 0, intType, intType, nil, -1, 0, true},
-				Field{"After", 2, boolType, boolType, nil, -1, 0, true},
+			fields{
+				field{"Before", 0, intType, intType, nil, -1, 0, true},
+				field{"After", 2, boolType, boolType, nil, -1, 0, true},
 			},
 		},
 		{
@@ -41,9 +41,9 @@ func TestFieldsFromStruct(t *testing.T) {
 				FixedStr string `struct:"[64]byte,skip=4"`
 				LSBInt   int    `struct:"uint32,little"`
 			}{},
-			Fields{
-				Field{"FixedStr", 0, reflect.TypeOf([64]byte{}), strType, nil, -1, 4, true},
-				Field{"LSBInt", 1, reflect.TypeOf(uint32(0)), intType, binary.LittleEndian, -1, 0, true},
+			fields{
+				field{"FixedStr", 0, reflect.TypeOf([64]byte{}), strType, nil, -1, 4, true},
+				field{"LSBInt", 1, reflect.TypeOf(uint32(0)), intType, binary.LittleEndian, -1, 0, true},
 			},
 		},
 		{
@@ -51,8 +51,8 @@ func TestFieldsFromStruct(t *testing.T) {
 				NumColors int32 `struct:"sizeof=Colors"`
 				Colors    [][4]uint8
 			}{},
-			Fields{
-				Field{
+			fields{
+				field{
 					Name:    "NumColors",
 					Index:   0,
 					Type:    reflect.TypeOf(int32(0)),
@@ -61,7 +61,7 @@ func TestFieldsFromStruct(t *testing.T) {
 					Skip:    0,
 					Trivial: true,
 				},
-				Field{
+				field{
 					Name:    "Colors",
 					Index:   1,
 					Type:    reflect.TypeOf([][4]uint8{}),
@@ -123,7 +123,7 @@ func TestIsTypeTrivial(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		assert.Equal(t, test.trivial, IsTypeTrivial(reflect.TypeOf(test.input)))
+		assert.Equal(t, test.trivial, isTypeTrivial(reflect.TypeOf(test.input)))
 	}
 }
 
@@ -203,7 +203,7 @@ func TestSizeOf(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		field := FieldFromType(reflect.TypeOf(test.input))
+		field := fieldFromType(reflect.TypeOf(test.input))
 		assert.Equal(t, test.size, field.SizeOf(reflect.ValueOf(test.input)),
 			"bad size for input: %#v", test.input)
 	}
