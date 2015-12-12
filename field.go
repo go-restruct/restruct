@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"reflect"
+	"sync"
 )
 
 // Sizer is a type which has a defined size in binary.
@@ -27,6 +28,7 @@ type Field struct {
 type Fields []Field
 
 var fieldCache = map[reflect.Type][]Field{}
+var cacheMutex = sync.RWMutex{}
 
 // Elem constructs a transient field representing an element of an array, slice,
 // or pointer.
@@ -67,8 +69,8 @@ func FieldFromType(typ reflect.Type) Field {
 	}
 }
 
-// FieldsFromStruct returns a slice of fields for binary packing and unpacking.
-func FieldsFromStruct(typ reflect.Type) (result Fields) {
+// fieldsFromStruct returns a slice of fields for binary packing and unpacking.
+func fieldsFromStruct(typ reflect.Type) (result Fields) {
 	if typ.Kind() != reflect.Struct {
 		panic(fmt.Errorf("tried to get fields from non-struct type %s", typ.Kind().String()))
 	}
@@ -122,7 +124,24 @@ func FieldsFromStruct(typ reflect.Type) (result Fields) {
 		})
 	}
 
+	return
+}
+
+func cachedFieldsFromStruct(typ reflect.Type) (result Fields) {
+	cacheMutex.RLock()
+	result, ok := fieldCache[typ]
+	cacheMutex.RUnlock()
+
+	if ok {
+		return
+	}
+
+	result = fieldsFromStruct(typ)
+
+	cacheMutex.Lock()
 	fieldCache[typ] = result
+	cacheMutex.Unlock()
+
 	return
 }
 
@@ -149,7 +168,7 @@ func IsTypeTrivial(typ reflect.Type) bool {
 	case reflect.Array, reflect.Ptr:
 		return IsTypeTrivial(typ.Elem())
 	case reflect.Struct:
-		for _, field := range FieldsFromStruct(typ) {
+		for _, field := range cachedFieldsFromStruct(typ) {
 			if !IsTypeTrivial(field.Type) {
 				return false
 			}
@@ -227,7 +246,7 @@ func (f *Field) SizeOf(val reflect.Value) (size int) {
 		return size
 	case reflect.Struct:
 		size += f.Skip
-		for _, field := range FieldsFromStruct(f.Type) {
+		for _, field := range cachedFieldsFromStruct(f.Type) {
 			size += field.SizeOf(val.Field(field.Index))
 		}
 		return size

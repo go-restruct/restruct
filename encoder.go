@@ -117,7 +117,7 @@ func (e *encoder) write(f Field, v reflect.Value) {
 
 	case reflect.Struct:
 		e.struc = v
-		e.sfields = FieldsFromStruct(f.Type)
+		e.sfields = cachedFieldsFromStruct(f.Type)
 		l := len(e.sfields)
 		for i := 0; i < l; i++ {
 			f := e.sfields[i]

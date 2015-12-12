@@ -116,7 +116,7 @@ func (d *decoder) read(f Field, v reflect.Value) {
 
 	case reflect.Struct:
 		d.struc = v
-		d.sfields = FieldsFromStruct(f.Type)
+		d.sfields = cachedFieldsFromStruct(f.Type)
 		l := len(d.sfields)
 		for i := 0; i < l; i++ {
 			f := d.sfields[i]

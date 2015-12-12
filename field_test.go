@@ -75,7 +75,7 @@ func TestFieldsFromStruct(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		fields := FieldsFromStruct(reflect.TypeOf(test.input))
+		fields := fieldsFromStruct(reflect.TypeOf(test.input))
 		assert.Equal(t, test.fields, fields)
 	}
 }
@@ -86,7 +86,7 @@ func TestFieldsFromNonStructPanics(t *testing.T) {
 			t.Error("Non-struct did not panic.")
 		}
 	}()
-	FieldsFromStruct(reflect.TypeOf(0))
+	fieldsFromStruct(reflect.TypeOf(0))
 }
 
 func TestFieldsFromBrokenStruct(t *testing.T) {
@@ -101,7 +101,7 @@ func TestFieldsFromBrokenStruct(t *testing.T) {
 	badSize := struct {
 		Test int64 `struct:"sizeof=Nonexistant"`
 	}{}
-	FieldsFromStruct(reflect.TypeOf(badSize))
+	fieldsFromStruct(reflect.TypeOf(badSize))
 }
 
 func TestIsTypeTrivial(t *testing.T) {
@@ -209,8 +209,8 @@ func TestSizeOf(t *testing.T) {
 	}
 }
 
-var simpleFields = FieldsFromStruct(reflect.TypeOf(TestElem{}))
-var complexFields = FieldsFromStruct(reflect.TypeOf(TestStruct{}))
+var simpleFields = fieldsFromStruct(reflect.TypeOf(TestElem{}))
+var complexFields = fieldsFromStruct(reflect.TypeOf(TestStruct{}))
 
 func TestSizeOfFields(t *testing.T) {
 	assert.Equal(t, simpleFields.SizeOf(reflect.ValueOf(TestElem{})), 9)
@@ -219,7 +219,7 @@ func TestSizeOfFields(t *testing.T) {
 
 func BenchmarkFieldsFromStruct(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		FieldsFromStruct(reflect.TypeOf(TestStruct{}))
+		fieldsFromStruct(reflect.TypeOf(TestStruct{}))
 	}
 }
 
