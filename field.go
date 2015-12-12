@@ -179,10 +179,26 @@ func isTypeTrivial(typ reflect.Type) bool {
 	}
 }
 
+func (f *field) sizer(v reflect.Value) (Sizer, bool) {
+	if s, ok := v.Interface().(Sizer); ok {
+		return s, true
+	}
+
+	if !v.CanAddr() {
+		return nil, false
+	}
+
+	if s, ok := v.Addr().Interface().(Sizer); ok {
+		return s, true
+	}
+
+	return nil, false
+}
+
 // SizeOf determines what the binary size of the field should be.
 func (f *field) SizeOf(val reflect.Value) (size int) {
 	if f.Name != "_" {
-		if s, ok := val.Interface().(Sizer); ok {
+		if s, ok := f.sizer(val); ok {
 			return s.SizeOf()
 		}
 	} else {

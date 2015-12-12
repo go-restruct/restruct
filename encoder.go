@@ -11,7 +11,7 @@ import (
 // representation.
 type Packer interface {
 	Sizer
-	Pack(order binary.ByteOrder) ([]byte, error)
+	Pack(buf []byte, order binary.ByteOrder) ([]byte, error)
 }
 
 type encoder struct {
@@ -61,14 +61,31 @@ func (e *encoder) skip(f field, v reflect.Value) {
 	e.skipn(f.SizeOf(v))
 }
 
+func (e *encoder) packer(v reflect.Value) (Packer, bool) {
+	if s, ok := v.Interface().(Packer); ok {
+		return s, true
+	}
+
+	if !v.CanAddr() {
+		return nil, false
+	}
+
+	if s, ok := v.Addr().Interface().(Packer); ok {
+		return s, true
+	}
+
+	return nil, false
+}
+
 func (e *encoder) write(f field, v reflect.Value) {
 	if f.Name != "_" {
-		if s, ok := v.Interface().(Packer); ok {
-			data, err := s.Pack(e.order)
+		if s, ok := e.packer(v); ok {
+			var err error
+			e.buf, err = s.Pack(e.buf, e.order)
 			if err != nil {
 				panic(err)
 			}
-			e.writen(data)
+			return
 		}
 	} else {
 		e.skipn(f.SizeOf(v))

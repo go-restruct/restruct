@@ -2,6 +2,7 @@ package restruct
 
 import (
 	"encoding/binary"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -335,4 +336,46 @@ func BenchmarkFastPath(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Unpack(data, binary.LittleEndian, &v)
 	}
+}
+
+type CString string
+
+func (s *CString) SizeOf() int {
+	return len(*s) + 1
+}
+
+func (s *CString) Unpack(buf []byte, order binary.ByteOrder) ([]byte, error) {
+	for i, l := 0, len(buf); i < l; i++ {
+		if buf[i] == 0 {
+			*s = CString(buf[:i])
+			return buf[i+1:], nil
+		}
+	}
+	return []byte{}, errors.New("unterminated string")
+}
+
+func (s *CString) Pack(buf []byte, order binary.ByteOrder) ([]byte, error) {
+	l := len(*s)
+	for i := 0; i < l; i++ {
+		buf[i] = (*s)[i]
+	}
+	buf[l] = 0
+	return buf[l+1:], nil
+}
+
+func TestCustomPacking(t *testing.T) {
+	x := CString("Test string! テスト。")
+	b, err := Pack(binary.LittleEndian, &x)
+	assert.Nil(t, err)
+	assert.Equal(t, []byte{
+		0x54, 0x65, 0x73, 0x74, 0x20, 0x73, 0x74, 0x72,
+		0x69, 0x6e, 0x67, 0x21, 0x20, 0xe3, 0x83, 0x86,
+		0xe3, 0x82, 0xb9, 0xe3, 0x83, 0x88, 0xe3, 0x80,
+		0x82, 0x0,
+	}, b)
+
+	y := CString("")
+	err = Unpack(b, binary.LittleEndian, &y)
+	assert.Nil(t, err)
+	assert.Equal(t, "Test string! テスト。", string(y))
 }

@@ -10,8 +10,7 @@ import (
 // Unpacker is a type capable of unpacking a binary representation of itself
 // into a native representation.
 type Unpacker interface {
-	Sizer
-	Unpack(data []byte, order binary.ByteOrder) error
+	Unpack(buf []byte, order binary.ByteOrder) ([]byte, error)
 }
 
 type decoder struct {
@@ -67,13 +66,31 @@ func (d *decoder) skip(f field, v reflect.Value) {
 	d.skipn(f.SizeOf(v))
 }
 
+func (d *decoder) unpacker(v reflect.Value) (Unpacker, bool) {
+	if s, ok := v.Interface().(Unpacker); ok {
+		return s, true
+	}
+
+	if !v.CanAddr() {
+		return nil, false
+	}
+
+	if s, ok := v.Addr().Interface().(Unpacker); ok {
+		return s, true
+	}
+
+	return nil, false
+}
+
 func (d *decoder) read(f field, v reflect.Value) {
 	if f.Name != "_" {
-		if s, ok := v.Interface().(Unpacker); ok {
-			err := s.Unpack(d.readn(s.SizeOf()), d.order)
+		if s, ok := d.unpacker(v); ok {
+			var err error
+			d.buf, err = s.Unpack(d.buf, d.order)
 			if err != nil {
 				panic(err)
 			}
+			return
 		}
 	} else {
 		d.skipn(f.SizeOf(v))
