@@ -117,10 +117,15 @@ func (d *decoder) read(f Field, v reflect.Value) {
 			l := v.Len()
 			v.SetString(string(d.readn(l)))
 		case reflect.Slice, reflect.Array:
-			l := v.Len()
-			ef := f.Elem()
-			for i := 0; i < l; i++ {
-				d.read(ef, v.Index(i))
+			switch f.DefType.Elem().Kind() {
+			case reflect.Uint8:
+				v.SetBytes(d.readn(f.SizeOf(v)))
+			default:
+				l := v.Len()
+				ef := f.Elem()
+				for i := 0; i < l; i++ {
+					d.read(ef, v.Index(i))
+				}
 			}
 		default:
 			panic(fmt.Errorf("invalid array cast type: %s", f.DefType.String()))
