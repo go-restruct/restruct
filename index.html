@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Cayman EX</title>
+    <link rel="stylesheet" href="style.css" media="screen">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,700|Montserrat">
+  </head>
+  <body>
+    <header>
+      <section class="page-header">
+        <h1 class="project-name">restruct</h1>
+        <h2 class="project-tagline">Rich binary serialization library for Go 1.3+</h2>
+        <a href="https://github.com/go-restruct/restruct" class="btn">View on GitHub</a>
+        <a href="https://godoc.org/github.com/go-restruct/restruct" class="btn">Documentation</a>
+      </section>
+    </header>
+    <section class="main-content">
+<h1>Introduction</h1>
+<p>
+  Restruct is a library for the Go programming language that is designed
+  to provide raw binary serialization and deserialization.
+</p>
+<p>
+  Restruct provides functionality similar to what you might expect from
+  using raw structures in C, only richer. While using C structures is
+  significantly faster, restruct provides greater functionality, such
+  as allowing custom serialization/deserialization routines for
+  user-defined types, explicit control of padding, and fine-grained
+  control over byte order.
+</p>
+<h1>Features</h1>
+<ul>
+  <li>Open Source, ISC license</li>
+  <li>No external dependencies</li>
+  <li>Supports Go 1.3+</li>
+  <li>Unit tested and documented</li>
+  <li>Supports a wide array of binary serialization tasks:
+    <ul>
+      <li>Conversions between integer types</li>
+      <li>Automatic size-prefixed arrays</li>
+      <li>Custom serialization for user-defined types</li>
+      <li>Granular endianness</li>
+    </ul>
+  </li>
+</ul>
+<h1>Getting Started</h1>
+<p>
+  Restruct's API is versioned using <a href="http://gopkg.in">gopkg.in</a>.
+  To install the stable version of restruct, issue the following command:
+</p>
+<pre><code>go get https://gopkg.in/restruct.v1</code></pre>
+<h2>Basic Usage</h2>
+<p>
+  When not using any of the advanced features, restruct behaves similar
+  to encoding/binary. Here's an example of reading and writing data with
+  restruct, using only basic features:
+</p>
+<pre><code>package main
+
+import (
+	"encoding/binary"
+	"io/ioutil"
+
+	"gopkg.in/restruct.v1"
+)
+
+func main() {
+	test := struct {
+		Counter int32
+	}{}
+
+	if data, err := ioutil.ReadFile("counter"); err == nil {
+		restruct.Unpack(data, binary.LittleEndian, &test)
+	}
+
+	test.Counter++
+
+	data, _ := restruct.Pack(binary.LittleEndian, &test)
+	ioutil.WriteFile("counter", data, 0777)
+}
+</code></pre>
+<p>
+  In this code sample, the file 'counter' will contain a mere 4 bytes, which
+  will increment up from 1 each time the program is ran. Though contrived, this
+  small program shows most of the public API of restruct.
+</p>
+<p>
+  The additional features provided by restruct are mostly provided through
+  struct tagging.
+</p>
+<h2>Advanced Features</h2>
+<p>
+  Struct tag formatting in restruct is very simple. Restruct uses the 'struct'
+  name for its tags. The value of this tag will always be a comma separated
+  list of flags, which are processed left-to-right. The following flags are
+  currently supported:
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Flag</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><pre><code>[Type]</code></pre></td>
+      <td>
+        A bare Go type expression, e.g. <code>int32</code> or
+        <code>[]string</code>. This allows you to override the binary
+        interpretation of a field in many cases, although not every combination
+        will work properly. Notably, however, it is possible to use a
+        fixed-length byte array as a representation of a string, among many
+        other transformations.
+        <br/>
+        This field is parsed using the Go parser, so any valid Go expression
+        will parse properly. However, channels and maps will cause an error.
+      </td>
+    </tr>
+    <tr>
+      <td><pre><code>sizeof=[Field]</code></pre></td>
+      <td>
+        Specifies that this field should be treated as a count of the number of
+        elements in <code>Field</code>. Inspired by <a href="https://github.com/lunixbochs/struc">lunixbochs/struc</a>,
+        this flag makes it easy to unpack a variable number of elements. Unlike
+        struc, however, the target field can be any slice type - it can be a
+        slice of structures, a slice of arrays, and the binary size of elements
+        can vary per element safely.
+      </td>
+    </tr>
+    <tr>
+      <td><pre><code>skip=[Count]</code></pre></td>
+      <td>
+        Specifies an offset to skip before this field. This can be used to,
+        for example, emulate C-style structure alignment. It is also possible
+        to use this with unnamed (<code>_</code>) fields to skip an arbitrary
+        number of bytes from the source without taking up any bytes of memory.
+      </td>
+    </tr>
+    <tr>
+      <td><pre><code>big</code></pre></td>
+      <td>
+        Specifies that this field should be treated as big endian. This will
+        override the byte order passed into <code>Pack</code> or <code>Unpack</code>.
+        This tag will also apply recursively if you put it on a composite field.
+      </td>
+    </tr>
+    <tr>
+      <td><pre><code>little</code></pre></td>
+      <td>
+        Like the above, but specifies little endian instead.
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h3>Example</h3>
+<p>
+  It would be difficult to show off every feature of restruct in a single
+  example, but this slightly more advanced example shows off how some of the
+  flags can be used in a real program.
+</p>
+<pre><code>package main
+
+import (
+    "encoding/binary"
+    "io/ioutil"
+    "os"
+
+    "gopkg.in/restruct.v1"
+)
+
+type Record struct {
+    Message string `struct:[128]byte`
+}
+
+type Container struct {
+    Version   int `struct:int32`
+    NumRecord int `struct:int32,sizeof=Records`
+    Records   []Record
+}
+
+func main() {
+    var c Container
+
+    file, _ := os.Open("records")
+    defer file.Close()
+    data, _ := ioutil.ReadAll(file)
+
+    restruct.Unpack(data, binary.LittleEndian, &c)
+}
+</pre></code>
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/jasonlong/cayman-theme">Restruct</a> is open source software developed by <a href="https://github.com/johnwchadwick">John Chadwick</a>.</span>
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> based on a theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+    </section>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "cayman-ex",
+  "version": "1.0.0",
+  "homepage": "http://github.com/johnwchadwick/cayman-ex-theme",
+  "author": "John Chadwick",
+  "devDependencies": {
+    "gulp": "^3.9.0",
+    "gulp-concat": "^2.6.0",
+    "gulp-minify-css": "^1.2.2",
+    "gulp-stylus": "^2.1.1",
+    "nib": "^1.1.0"
+  }
+}
