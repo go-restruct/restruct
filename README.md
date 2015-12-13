@@ -1,8 +1,14 @@
-# restruct [![Build Status](https://travis-ci.org/johnwchadwick/restruct.svg)](https://travis-ci.org/johnwchadwick/restruct) [![codecov.io](http://codecov.io/github/johnwchadwick/restruct/coverage.svg?branch=master)](http://codecov.io/github/johnwchadwick/restruct?branch=master) [![godoc.org](http://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square)](https://godoc.org/github.com/johnwchadwick/restruct)
+# restruct [![Build Status](https://travis-ci.org/go-restruct/restruct.svg)](https://travis-ci.org/go-restruct/restruct) [![codecov.io](http://codecov.io/github/go-restruct/restruct/coverage.svg?branch=master)](http://codecov.io/github/go-restruct/restruct?branch=master) [![godoc.org](http://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square)](https://godoc.org/github.com/go-restruct/restruct)
 `restruct` is a library for reading and writing binary data in Go. Similar to
 lunixbochs `struc` and `encoding/binary`, this library reads data based on the
 layout of structures and, like `struc`, based on what is contained in struct
 tags.
+
+To install Restruct, use the following command:
+
+```
+go get gopkg.in/restruct.v1
+```
 
 `restruct` aims to provide a clean, flexible, robust implementation of struct
 packing. In the future, through fast-path optimizations and code generation, it
@@ -34,7 +40,7 @@ kinds of arrays by default:
     float32, or float64.
 
 In addition, you can statically register more array types by calling the
-[`RegisterArrayType`](https://godoc.org/github.com/johnwchadwick/restruct#RegisterArrayType)
+[`RegisterArrayType`](https://godoc.org/github.com/go-restruct/restruct#RegisterArrayType)
 function (this is a no-op on Go 1.5.)
 
 ## Example
@@ -47,7 +53,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/johnwchadwick/restruct"
+	"gopkg.in/restruct.v1"
 )
 
 type Record struct {

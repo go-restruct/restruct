@@ -26,12 +26,20 @@ import (
 )
 
 /*
-Unpack reads data from a byteslice into a structure.
+Unpack reads data from a byteslice into a value.
 
-Each structure field will be read sequentially based on a straightforward
+Two types of values are directly supported here: Unpackers and structs. You can
+pass them by value or by pointer, although it is an error if Restruct is
+unable to set a value because it is unaddressable.
+
+For structs, each field will be read sequentially based on a straightforward
 interpretation of the type. For example, an int32 will be read as a 32-bit
 signed integer, taking 4 bytes of memory. Structures and arrays are laid out
 flat with no padding or metadata.
+
+Unexported fields are ignored, except for fields named _ - those fields will
+be treated purely as padding. Padding will not be preserved through packing
+and unpacking.
 
 The behavior of deserialization can be customized using struct tags. The
 following struct tag syntax is supported:
@@ -73,6 +81,9 @@ func Unpack(data []byte, order binary.ByteOrder, v interface{}) (err error) {
 
 /*
 Pack writes data from a datastructure into a byteslice.
+
+Two types of values are directly supported here: Packers and structs. You can
+pass them by value or by pointer.
 
 Each structure is serialized in the same way it would be deserialized with
 Unpack. See Unpack documentation for the struct tag format.
