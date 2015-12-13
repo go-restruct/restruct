@@ -209,8 +209,14 @@ func TestSizeOf(t *testing.T) {
 	}
 }
 
-var simpleFields = fieldsFromStruct(reflect.TypeOf(TestElem{}))
-var complexFields = fieldsFromStruct(reflect.TypeOf(TestStruct{}))
+var simpleFields fields
+var complexFields fields
+
+func init() {
+	RegisterArrayType([256]float32{})
+	simpleFields = fieldsFromStruct(reflect.TypeOf(TestElem{}))
+	complexFields = fieldsFromStruct(reflect.TypeOf(TestStruct{}))
+}
 
 func TestSizeOfFields(t *testing.T) {
 	assert.Equal(t, simpleFields.SizeOf(reflect.ValueOf(TestElem{})), 9)

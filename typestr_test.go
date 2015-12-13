@@ -16,6 +16,8 @@ type ParseTypeTestCase struct {
 }
 
 func TestParseType(t *testing.T) {
+	RegisterArrayType([5]*float32{})
+
 	tests := []struct {
 		input  string
 		typ    reflect.Type

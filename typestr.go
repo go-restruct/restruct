@@ -72,7 +72,7 @@ func typeOfExpr(expr ast.Expr) (reflect.Type, error) {
 			if err != nil {
 				return nil, err
 			}
-			return reflect.ArrayOf(len, sub), nil
+			return arrayOf(len, sub), nil
 		}
 	case *ast.Ident:
 		// Primitive types
