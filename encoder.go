@@ -54,10 +54,6 @@ func (e *encoder) writeS32(x int32) { e.write32(uint32(x)) }
 
 func (e *encoder) writeS64(x int64) { e.write64(uint64(x)) }
 
-func (e *encoder) writen(b []byte) {
-	e.buf = append(e.buf, b...)
-}
-
 func (e *encoder) skipn(count int) {
 	e.buf = e.buf[count:]
 }
