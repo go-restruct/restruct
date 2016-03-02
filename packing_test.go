@@ -381,7 +381,7 @@ func TestCustomPacking(t *testing.T) {
 	assert.Equal(t, "Test string! テスト。", string(y))
 }
 
-// Test custom packing with non-pointer reciever
+// Test custom packing with non-pointer receiver
 type Custom struct {
 	A *int
 }
