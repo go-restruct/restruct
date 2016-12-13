@@ -16,6 +16,33 @@ func TestUnpack(t *testing.T) {
 	}{
 		{
 			data: []byte{
+				0x12, 0x34, 0x56, 0x78,
+			},
+			value: struct {
+				Dd uint32
+			}{
+				Dd: 0x12345678,
+			},
+		},
+
+		{
+			data: []byte{
+				0x55, 0x55,
+			},
+			value: struct {
+				A uint8 `struct:"uint8:3"`
+				B uint8 `struct:"uint8:2"`
+				C uint8 `struct:"uint8"`
+				D uint8 `struct:"uint8:3"`
+			}{
+				A: 0x02,
+				B: 0x02,
+				C: 0xAA,
+				D: 0x05,
+			},
+		},
+		{
+			data: []byte{
 				0x00, 0x00, 0x00, 0x01,
 				0x00, 0x00, 0x00, 0x02,
 				0x03, 0x00, 0x00, 0x00,
@@ -67,6 +94,17 @@ func TestUnpack(t *testing.T) {
 					{V1: 1, V2: 2},
 					{V1: 3, V2: 4},
 				},
+			},
+		},
+		{
+			data: []byte{
+				0x3e, 0x00, 0x00, 0x00,
+				0x3f, 0x80, 0x00, 0x00,
+			},
+			value: struct {
+				C64 complex64
+			}{
+				C64: complex(0.125, 1.0),
 			},
 		},
 		{

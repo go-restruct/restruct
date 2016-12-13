@@ -22,7 +22,7 @@ func TestFieldsFromStruct(t *testing.T) {
 				Simple int
 			}{},
 			fields{
-				field{"Simple", 0, intType, intType, nil, -1, 0, true},
+				field{"Simple", 0, intType, intType, nil, -1, 0, true, 0},
 			},
 		},
 		{
@@ -32,8 +32,8 @@ func TestFieldsFromStruct(t *testing.T) {
 				After  bool
 			}{},
 			fields{
-				field{"Before", 0, intType, intType, nil, -1, 0, true},
-				field{"After", 2, boolType, boolType, nil, -1, 0, true},
+				field{"Before", 0, intType, intType, nil, -1, 0, true, 0},
+				field{"After", 2, boolType, boolType, nil, -1, 0, true, 0},
 			},
 		},
 		{
@@ -42,8 +42,8 @@ func TestFieldsFromStruct(t *testing.T) {
 				LSBInt   int    `struct:"uint32,little"`
 			}{},
 			fields{
-				field{"FixedStr", 0, reflect.TypeOf([64]byte{}), strType, nil, -1, 4, true},
-				field{"LSBInt", 1, reflect.TypeOf(uint32(0)), intType, binary.LittleEndian, -1, 0, true},
+				field{"FixedStr", 0, reflect.TypeOf([64]byte{}), strType, nil, -1, 4, true, 0},
+				field{"LSBInt", 1, reflect.TypeOf(uint32(0)), intType, binary.LittleEndian, -1, 0, true, 0},
 			},
 		},
 		{

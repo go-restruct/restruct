@@ -10,11 +10,12 @@ import (
 
 // tagOptions represents a parsed struct tag.
 type tagOptions struct {
-	Ignore bool
-	Type   reflect.Type
-	SizeOf string
-	Skip   int
-	Order  binary.ByteOrder
+	Ignore  bool
+	Type    reflect.Type
+	SizeOf  string
+	Skip    int
+	Order   binary.ByteOrder
+	BitSize uint8 // size in bits - only for int types
 }
 
 // mustParseTag calls ParseTag but panics if there is an error, to help make
@@ -63,11 +64,32 @@ func parseTag(tag string) (tagOptions, error) {
 					return tagOptions{}, errors.New("bad skip amount")
 				}
 			} else {
-				typ, err := parseType(part)
+				// Here is where the type is parsed from the tag
+				dataType := strings.Split(part, ":")
+				if len(dataType) > 2 {
+					return tagOptions{}, errors.New("extra options on type field")
+				}
+				// parse the datatype part
+				typ, err := parseType(dataType[0])
 				if err != nil {
 					return tagOptions{}, err
 				}
 				result.Type = typ
+				// parse de bitfield type
+				if len(dataType) > 1 {
+					if len(dataType[1]) > 0 {
+						bsize, err := strconv.Atoi(dataType[1])
+						if err != nil || bsize == 0 {
+							return tagOptions{}, errors.New("Bad value on bitfield")
+						}
+						result.BitSize = uint8(bsize)
+
+						// Caution!! reflect.Type.Bits() can panic if called on non int,float or complex
+						if result.BitSize >= uint8(typ.Bits()) {
+							return tagOptions{}, errors.New("Too high value on bitfield")
+						}
+					}
+				}
 				continue
 			}
 		}
