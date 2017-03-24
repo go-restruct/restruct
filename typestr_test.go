@@ -115,5 +115,5 @@ func TestBadAst(t *testing.T) {
 	}
 	typ, err = typeOfExpr(&badArr)
 	assert.Equal(t, typ, nil)
-	assert.Equal(t, err.Error(), "strconv.ParseInt: parsing \"10ii0\": invalid syntax")
+	assert.NotNil(t, err)
 }
