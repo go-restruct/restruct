@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+
 )
 
 // Unpacker is a type capable of unpacking a binary representation of itself
@@ -17,43 +18,119 @@ type Unpacker interface {
 }
 
 type decoder struct {
-	order   binary.ByteOrder
-	buf     []byte
-	struc   reflect.Value
-	sfields []field
+	order      binary.ByteOrder
+	buf        []byte
+	struc      reflect.Value
+	sfields    []field
+	bitCounter uint8
 }
 
-func (d *decoder) read8() uint8 {
-	x := d.buf[0]
-	d.buf = d.buf[1:]
-	return x
+func (d *decoder) readBits(f field, outputLength uint8) (output []byte) {
+
+	output = make([]byte, outputLength)
+
+	if f.BitSize == 0 {
+		// Having problems with complex64 type ... so we asume we want to read all
+		// f.BitSize = uint8(f.Type.Bits())
+		f.BitSize = 8 * outputLength
+	}
+
+	// originPos: Original position of the first bit in the first byte
+	var originPos uint8 = 8 - d.bitCounter
+
+	// destPos: Destination position ( in the result ) of the first bit in the first byte
+	var destPos uint8 = f.BitSize % 8
+	if destPos == 0 {
+		destPos = 8
+	}
+
+	// numBytes: number of complete bytes to hold the result
+	var numBytes uint8 = f.BitSize / 8
+
+	// numBits: number of remaining bits in the first non-complete byte of the result
+	var numBits uint8 = f.BitSize % 8
+
+	// number of positions we have to shift the bytes to get the result
+	var shift uint8 = (uint8(math.Abs(float64(originPos - destPos)))) % 8
+
+	var outputInitialIdx uint8 = outputLength - numBytes
+	if numBits > 0 {
+		outputInitialIdx = outputInitialIdx - 1
+	}
+
+	if originPos < destPos { // shift left
+		var idx uint8 = 0
+		for outIdx := outputInitialIdx; outIdx < outputLength; outIdx++ {
+			// TODO: Control the number of bytes of d.buf ... we need to read ahead
+			var carry uint8 = d.buf[idx+1] >> (8 - shift)
+			output[outIdx] = (d.buf[idx] << shift) | carry
+			idx++
+		}
+	} else { // originPos >= destPos => shift right
+		var idx uint8 = 0
+
+		// carry : is a little bit tricky in this case because of the first case
+		// when idx == 0 and there is no carry at all
+		carry := func(idx uint8) uint8 {
+			if idx == 0 {
+				return 0x00
+			}
+			return (d.buf[idx-1] << (8 - shift))
+		}
+
+		for outIdx := outputInitialIdx; outIdx < outputLength; outIdx++ {
+			output[outIdx] = (d.buf[idx] >> shift) | carry(idx)
+			idx++
+		}
+	}
+
+	// here the output is calculated ... but the first byte may have some extra bits
+	// therefore we apply a mask to erase those unaddressable bits
+	output[outputInitialIdx] &= ((0x01 << destPos) - 1)
+
+	// now we need to update the head of the incoming buffer and the bitCounter
+	d.bitCounter = (d.bitCounter + f.BitSize) % 8
+
+	// move the head to the next non-complete byte used
+	headerUpdate := func() uint8 {
+		if (d.bitCounter == 0) && ((f.BitSize % 8) != 0) {
+			return (numBytes + 1)
+		}
+		return numBytes
+	}
+
+	d.buf = d.buf[headerUpdate():]
+
+	return
 }
 
-func (d *decoder) read16() uint16 {
-	x := d.order.Uint16(d.buf[0:2])
-	d.buf = d.buf[2:]
-	return x
+func (d *decoder) read8(f field) uint8 {
+	rawdata := d.readBits(f, 1)
+	return uint8(rawdata[0])
 }
 
-func (d *decoder) read32() uint32 {
-	x := d.order.Uint32(d.buf[0:4])
-	d.buf = d.buf[4:]
-	return x
+func (d *decoder) read16(f field) uint16 {
+	rawdata := d.readBits(f, 2)
+	return d.order.Uint16(rawdata)
 }
 
-func (d *decoder) read64() uint64 {
-	x := d.order.Uint64(d.buf[0:8])
-	d.buf = d.buf[8:]
-	return x
+func (d *decoder) read32(f field) uint32 {
+	rawdata := d.readBits(f, 4)
+	return d.order.Uint32(rawdata)
 }
 
-func (d *decoder) readS8() int8 { return int8(d.read8()) }
+func (d *decoder) read64(f field) uint64 {
+	rawdata := d.readBits(f, 8)
+	return d.order.Uint64(rawdata)
+}
 
-func (d *decoder) readS16() int16 { return int16(d.read16()) }
+func (d *decoder) readS8(f field) int8 { return int8(d.read8(f)) }
 
-func (d *decoder) readS32() int32 { return int32(d.read32()) }
+func (d *decoder) readS16(f field) int16 { return int16(d.read16(f)) }
 
-func (d *decoder) readS64() int64 { return int64(d.read64()) }
+func (d *decoder) readS32(f field) int32 { return int32(d.read32(f)) }
+
+func (d *decoder) readS64(f field) int64 { return int64(d.read64(f)) }
 
 func (d *decoder) readn(count int) []byte {
 	x := d.buf[0:count]
@@ -171,37 +248,37 @@ func (d *decoder) read(f field, v reflect.Value) {
 		}
 
 	case reflect.Int8:
-		v.SetInt(int64(d.readS8()))
+		v.SetInt(int64(d.readS8(f)))
 	case reflect.Int16:
-		v.SetInt(int64(d.readS16()))
+		v.SetInt(int64(d.readS16(f)))
 	case reflect.Int32:
-		v.SetInt(int64(d.readS32()))
+		v.SetInt(int64(d.readS32(f)))
 	case reflect.Int64:
-		v.SetInt(d.readS64())
+		v.SetInt(d.readS64(f))
 
 	case reflect.Uint8:
-		v.SetUint(uint64(d.read8()))
+		v.SetUint(uint64(d.read8(f)))
 	case reflect.Uint16:
-		v.SetUint(uint64(d.read16()))
+		v.SetUint(uint64(d.read16(f)))
 	case reflect.Uint32:
-		v.SetUint(uint64(d.read32()))
+		v.SetUint(uint64(d.read32(f)))
 	case reflect.Uint64:
-		v.SetUint(d.read64())
+		v.SetUint(d.read64(f))
 
 	case reflect.Float32:
-		v.SetFloat(float64(math.Float32frombits(d.read32())))
+		v.SetFloat(float64(math.Float32frombits(d.read32(f))))
 	case reflect.Float64:
-		v.SetFloat(math.Float64frombits(d.read64()))
+		v.SetFloat(math.Float64frombits(d.read64(f)))
 
 	case reflect.Complex64:
 		v.SetComplex(complex(
-			float64(math.Float32frombits(d.read32())),
-			float64(math.Float32frombits(d.read32())),
+			float64(math.Float32frombits(d.read32(f))),
+			float64(math.Float32frombits(d.read32(f))),
 		))
 	case reflect.Complex128:
 		v.SetComplex(complex(
-			math.Float64frombits(d.read64()),
-			math.Float64frombits(d.read64()),
+			math.Float64frombits(d.read64(f)),
+			math.Float64frombits(d.read64(f)),
 		))
 	}
 

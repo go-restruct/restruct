@@ -26,6 +26,7 @@ type field struct {
 	SIndex  int
 	Skip    int
 	Trivial bool
+	BitSize uint8
 }
 
 // fields represents a structure.
@@ -125,6 +126,7 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 			SIndex:  sindex,
 			Skip:    opts.Skip,
 			Trivial: isTypeTrivial(ftyp),
+			BitSize: opts.BitSize,
 		})
 	}
 
@@ -266,8 +268,17 @@ func (f *field) SizeOf(val reflect.Value) (size int) {
 		return size
 	case reflect.Struct:
 		size += f.Skip
+		var bitSize uint64
 		for _, field := range cachedFieldsFromStruct(f.Type) {
-			size += field.SizeOf(val.Field(field.Index))
+			if field.BitSize != 0 {
+				bitSize += uint64(field.BitSize)
+			} else {
+				size += field.SizeOf(val.Field(field.Index))
+			}
+		}
+		size += int(bitSize / 8)
+		if bitSize%8 > 0 {
+			size++
 		}
 		return size
 	default:

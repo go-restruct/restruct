@@ -50,6 +50,53 @@ func TestParseTag(t *testing.T) {
 		{"int16", tagOptions{Type: reflect.TypeOf(int16(0))}, ""},
 		{"int32", tagOptions{Type: reflect.TypeOf(int32(0))}, ""},
 
+		// Bitfields
+		{"uint8:3", tagOptions{Type: reflect.TypeOf(uint8(0)), BitSize: 3}, ""},
+		{"uint16:15", tagOptions{Type: reflect.TypeOf(uint16(0)), BitSize: 15}, ""},
+		{"uint32:31", tagOptions{Type: reflect.TypeOf(uint32(0)), BitSize: 31}, ""},
+		{"uint64:63", tagOptions{Type: reflect.TypeOf(uint64(0)), BitSize: 63}, ""},
+		{"uint8:1", tagOptions{Type: reflect.TypeOf(uint8(0)), BitSize: 1}, ""},
+		{"uint16:1", tagOptions{Type: reflect.TypeOf(uint16(0)), BitSize: 1}, ""},
+		{"uint32:1", tagOptions{Type: reflect.TypeOf(uint32(0)), BitSize: 1}, ""},
+		{"uint64:1", tagOptions{Type: reflect.TypeOf(uint64(0)), BitSize: 1}, ""},
+
+		// Wrong bitfields
+		{"uint8:0", tagOptions{}, "Bad value on bitfield"},
+		{"uint16:0", tagOptions{}, "Bad value on bitfield"},
+		{"uint32:0", tagOptions{}, "Bad value on bitfield"},
+		{"uint64:0", tagOptions{}, "Bad value on bitfield"},
+		{"int8:0", tagOptions{}, "Bad value on bitfield"},
+		{"int16:0", tagOptions{}, "Bad value on bitfield"},
+		{"int32:0", tagOptions{}, "Bad value on bitfield"},
+		{"int64:0", tagOptions{}, "Bad value on bitfield"},
+
+		{"uint8:8", tagOptions{BitSize: 0}, "Too high value on bitfield"},
+		{"uint16:16", tagOptions{BitSize: 0}, "Too high value on bitfield"},
+		{"uint32:32", tagOptions{BitSize: 0}, "Too high value on bitfield"},
+		{"uint64:64", tagOptions{BitSize: 0}, "Too high value on bitfield"},
+		{"int8:8", tagOptions{BitSize: 0}, "Too high value on bitfield"},
+		{"int16:16", tagOptions{BitSize: 0}, "Too high value on bitfield"},
+		{"int32:32", tagOptions{BitSize: 0}, "Too high value on bitfield"},
+		{"int64:64", tagOptions{BitSize: 0}, "Too high value on bitfield"},
+
+		{"uint8:XX", tagOptions{BitSize: 0}, "Bad value on bitfield"},
+		{"uint16:XX", tagOptions{BitSize: 0}, "Bad value on bitfield"},
+		{"uint32:XX", tagOptions{BitSize: 0}, "Bad value on bitfield"},
+		{"uint64:XX", tagOptions{BitSize: 0}, "Bad value on bitfield"},
+		{"int8:XX", tagOptions{BitSize: 0}, "Bad value on bitfield"},
+		{"int16:XX", tagOptions{BitSize: 0}, "Bad value on bitfield"},
+		{"int32:XX", tagOptions{BitSize: 0}, "Bad value on bitfield"},
+		{"int64:XX", tagOptions{BitSize: 0}, "Bad value on bitfield"},
+
+		{"uint8:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
+		{"uint16:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
+		{"uint32:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
+		{"uint64:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
+		{"int8:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
+		{"int16:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
+		{"int32:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
+		{"int64:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
+
 		// Sizeof
 		{"sizeof=OtherField", tagOptions{SizeOf: "OtherField"}, ""},
 		{"sizeof=日本", tagOptions{SizeOf: "日本"}, ""},
