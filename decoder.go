@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"reflect"
-
 )
 
 // Unpacker is a type capable of unpacking a binary representation of itself
@@ -25,9 +24,8 @@ type decoder struct {
 	bitCounter uint8
 }
 
-func (d *decoder) readBits(f field, outputLength uint8) (output []byte) {
-
-	output = make([]byte, outputLength)
+func (d *decoder) readBits(f field, outputLength uint8) []byte {
+	output := make([]byte, outputLength)
 
 	if f.BitSize == 0 {
 		// Having problems with complex64 type ... so we asume we want to read all
@@ -36,51 +34,46 @@ func (d *decoder) readBits(f field, outputLength uint8) (output []byte) {
 	}
 
 	// originPos: Original position of the first bit in the first byte
-	var originPos uint8 = 8 - d.bitCounter
+	originPos := 8 - d.bitCounter
 
 	// destPos: Destination position ( in the result ) of the first bit in the first byte
-	var destPos uint8 = f.BitSize % 8
+	destPos := f.BitSize % 8
 	if destPos == 0 {
 		destPos = 8
 	}
 
 	// numBytes: number of complete bytes to hold the result
-	var numBytes uint8 = f.BitSize / 8
+	numBytes := f.BitSize / 8
 
 	// numBits: number of remaining bits in the first non-complete byte of the result
-	var numBits uint8 = f.BitSize % 8
+	numBits := f.BitSize % 8
 
 	// number of positions we have to shift the bytes to get the result
-	var shift uint8 = (uint8(math.Abs(float64(originPos - destPos)))) % 8
+	shift := (originPos - destPos) % 8
 
-	var outputInitialIdx uint8 = outputLength - numBytes
+	outputInitialIdx := outputLength - numBytes
 	if numBits > 0 {
 		outputInitialIdx = outputInitialIdx - 1
 	}
-
+	o := output[outputInitialIdx:]
 	if originPos < destPos { // shift left
-		var idx uint8 = 0
-		for outIdx := outputInitialIdx; outIdx < outputLength; outIdx++ {
+		for idx := range o {
 			// TODO: Control the number of bytes of d.buf ... we need to read ahead
-			var carry uint8 = d.buf[idx+1] >> (8 - shift)
-			output[outIdx] = (d.buf[idx] << shift) | carry
-			idx++
+			carry := d.buf[idx+1] >> (8 - shift)
+			o[idx] = (d.buf[idx] << shift) | carry
 		}
 	} else { // originPos >= destPos => shift right
-		var idx uint8 = 0
-
 		// carry : is a little bit tricky in this case because of the first case
 		// when idx == 0 and there is no carry at all
-		carry := func(idx uint8) uint8 {
+		carry := func(idx int) uint8 {
 			if idx == 0 {
 				return 0x00
 			}
 			return (d.buf[idx-1] << (8 - shift))
 		}
 
-		for outIdx := outputInitialIdx; outIdx < outputLength; outIdx++ {
-			output[outIdx] = (d.buf[idx] >> shift) | carry(idx)
-			idx++
+		for idx := range o {
+			o[idx] = (d.buf[idx] >> shift) | carry(idx)
 		}
 	}
 
@@ -100,8 +93,7 @@ func (d *decoder) readBits(f field, outputLength uint8) (output []byte) {
 	}
 
 	d.buf = d.buf[headerUpdate():]
-
-	return
+	return output
 }
 
 func (d *decoder) read8(f field) uint8 {
