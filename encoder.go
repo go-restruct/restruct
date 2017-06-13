@@ -36,7 +36,7 @@ func (e *encoder) assignBuffer(in []byte) {
 
 func (e *encoder) writeBits(f field, inBuf []byte) {
 
-	var inputLength uint8 = uint8(len(inBuf))
+	var inputLength = uint8(len(inBuf))
 
 	if f.BitSize == 0 {
 		// Having problems with complex64 type ... so we asume we want to read all
@@ -44,19 +44,19 @@ func (e *encoder) writeBits(f field, inBuf []byte) {
 		f.BitSize = 8 * inputLength
 	}
 	// destPos: Destination position ( in the result ) of the first bit in the first byte
-	var destPos uint8 = 8 - e.bitCounter
+	var destPos = 8 - e.bitCounter
 
 	// originPos: Original position of the first bit in the first byte
-	var originPos uint8 = f.BitSize % 8
+	var originPos = f.BitSize % 8
 	if originPos == 0 {
 		originPos = 8
 	}
 
 	// numBytes: number of complete bytes to hold the result
-	var numBytes uint8 = f.BitSize / 8
+	var numBytes = f.BitSize / 8
 
 	// numBits: number of remaining bits in the first non-complete byte of the result
-	var numBits uint8 = f.BitSize % 8
+	var numBits = f.BitSize % 8
 
 	// number of positions we have to shift the bytes to get the result
 	var shift uint8
@@ -67,7 +67,7 @@ func (e *encoder) writeBits(f field, inBuf []byte) {
 	}
 	shift = shift % 8
 
-	var inputInitialIdx uint8 = inputLength - numBytes
+	var inputInitialIdx = inputLength - numBytes
 	if numBits > 0 {
 		inputInitialIdx = inputInitialIdx - 1
 	}
@@ -76,26 +76,26 @@ func (e *encoder) writeBits(f field, inBuf []byte) {
 		// shift left
 		carry := func(idx uint8) uint8 {
 			if (idx + 1) < inputLength {
-				return (inBuf[idx + 1] >> (8 - shift))
+				return (inBuf[idx+1] >> (8 - shift))
 			}
 			return 0x00
 
 		}
-		mask := func(idx uint8) uint8{
+		mask := func(idx uint8) uint8 {
 			if idx == 0 {
-				return (0x01<<destPos)-1
+				return (0x01 << destPos) - 1
 			}
 			return 0xFF
 		}
-		var idx uint8 = 0
+		var idx uint8
 		for inIdx := inputInitialIdx; inIdx < inputLength; inIdx++ {
-			e.buf[idx] |= ((inBuf[inIdx] << shift) | carry(inIdx) ) & mask(idx)
+			e.buf[idx] |= ((inBuf[inIdx] << shift) | carry(inIdx)) & mask(idx)
 			idx++
 		}
 
 	} else {
 		// originPos >= destPos => shift right
-		var idx uint8 = 0
+		var idx uint8
 		// carry : is a little bit tricky in this case because of the first case
 		// when idx == 0 and there is no carry at all
 		carry := func(idx uint8) uint8 {
@@ -104,9 +104,9 @@ func (e *encoder) writeBits(f field, inBuf []byte) {
 			}
 			return (inBuf[idx-1] << (8 - shift))
 		}
-		mask := func(idx uint8) uint8{
+		mask := func(idx uint8) uint8 {
 			if idx == 0 {
-				return (0x01<<destPos)-1
+				return (0x01 << destPos) - 1
 			}
 			return 0xFF
 		}
@@ -121,7 +121,7 @@ func (e *encoder) writeBits(f field, inBuf []byte) {
 		}
 	}
 
-        //now we should update buffer and bitCounter
+	//now we should update buffer and bitCounter
 	e.bitCounter = (e.bitCounter + f.BitSize) % 8
 
 	// move the head to the next non-complete byte used
@@ -262,12 +262,12 @@ func (e *encoder) write(f field, v reflect.Value) {
 		e.sfields = cachedFieldsFromStruct(f.Type)
 		l := len(e.sfields)
 		for i := 0; i < l; i++ {
-			f := e.sfields[i]
-			v := v.Field(f.Index)
-			if v.CanSet() {
-				e.write(f, v)
+			sf := e.sfields[i]
+			sv := v.Field(sf.Index)
+			if sv.CanSet() {
+				e.write(sf, sv)
 			} else {
-				e.skip(f, v)
+				e.skip(sf, sv)
 			}
 		}
 		e.sfields = sfields
