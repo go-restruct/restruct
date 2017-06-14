@@ -1,0 +1,12 @@
+{
+	"Deadline": "30s",
+	"Vendor": true,
+	"Enable": [
+		"goconst",
+		"golint",
+		"gotype",
+		"deadcode",
+		"ineffassign",
+		"vet"
+	]
+}

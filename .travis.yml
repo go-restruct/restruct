@@ -7,5 +7,8 @@ go:
   - tip
 script:
   - go test -coverprofile=coverage.txt -covermode=atomic
+  - "if [[ $TRAVIS_GO_VERSION == 1.8 ]]; then go get github.com/alecthomas/gometalinter; fi"
+  - "if [[ $TRAVIS_GO_VERSION == 1.8 ]]; then gometalinter --install; fi"
+  - "if [[ $TRAVIS_GO_VERSION == 1.8 ]]; then gometalinter --config=gometalinter.json; fi"
 after_success:
   - bash <(curl -s https://codecov.io/bash)
