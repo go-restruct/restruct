@@ -25,13 +25,6 @@ type encoder struct {
 	struc      reflect.Value
 	sfields    []field
 	bitCounter uint8
-	realSize   uint64
-	initBuf    []byte
-}
-
-func (e *encoder) assignBuffer(in []byte) {
-	e.buf = in
-	e.initBuf = in
 }
 
 func (e *encoder) writeBits(f field, inBuf []byte) {
