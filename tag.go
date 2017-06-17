@@ -80,13 +80,13 @@ func parseTag(tag string) (tagOptions, error) {
 					if len(dataType[1]) > 0 {
 						bsize, err := strconv.Atoi(dataType[1])
 						if err != nil || bsize == 0 {
-							return tagOptions{}, errors.New("Bad value on bitfield")
+							return tagOptions{}, errors.New("bad value on bitfield")
 						}
 						result.BitSize = uint8(bsize)
 
 						// Caution!! reflect.Type.Bits() can panic if called on non int,float or complex
 						if result.BitSize >= uint8(typ.Bits()) {
-							return tagOptions{}, errors.New("Too high value on bitfield")
+							return tagOptions{}, errors.New("too high value on bitfield")
 						}
 					}
 				}

@@ -103,11 +103,8 @@ func Pack(order binary.ByteOrder, v interface{}) (data []byte, err error) {
 	f := fieldFromType(val.Type())
 	data = make([]byte, f.SizeOf(val))
 
-	e := encoder{order: order}
-	e.assignBuffer(data)
+	e := encoder{buf: data, order: order}
 	e.write(f, val)
-
-	data = e.initBuf
 
 	return
 }

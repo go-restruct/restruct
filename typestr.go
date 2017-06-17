@@ -1,13 +1,14 @@
 package restruct
 
 import (
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"reflect"
 	"strconv"
+
+	"github.com/pkg/errors"
 )
 
 // typeMap maps identifiers to reflect.Types.
@@ -99,7 +100,7 @@ func typeOfExpr(expr ast.Expr) (reflect.Type, error) {
 func parseType(typ string) (reflect.Type, error) {
 	expr, err := parser.ParseExpr(typ)
 	if err != nil {
-		return nil, errors.New("parsing error")
+		return nil, errors.Wrap(err, "parsing error")
 	}
 
 	return typeOfExpr(expr)
