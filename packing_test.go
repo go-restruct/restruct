@@ -264,6 +264,11 @@ func TestUnpack(t *testing.T) {
 		data, err := Pack(binary.BigEndian, v.Interface())
 		assert.Nil(t, err)
 		assert.Equal(t, test.data, data)
+
+		// Test sizing
+		size, err := SizeOf(v.Interface())
+		assert.Nil(t, err)
+		assert.Equal(t, len(test.data), size)
 	}
 }
 

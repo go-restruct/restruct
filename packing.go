@@ -25,6 +25,15 @@ import (
 	"reflect"
 )
 
+func fieldFromIntf(v interface{}) (field, reflect.Value) {
+	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	f := fieldFromType(val.Type())
+	return f, val
+}
+
 /*
 Unpack reads data from a byteslice into a value.
 
@@ -69,14 +78,25 @@ func Unpack(data []byte, order binary.ByteOrder, v interface{}) (err error) {
 		}
 	}()
 
-	val := reflect.ValueOf(v)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
-	}
+	f, val := fieldFromIntf(v)
 	d := decoder{order: order, buf: data}
-	d.read(fieldFromType(val.Type()), val)
+	d.read(f, val)
 
 	return
+}
+
+/*
+SizeOf returns the serialized size of the structure passed, in memory.
+*/
+func SizeOf(v interface{}) (size int, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(error)
+		}
+	}()
+
+	f, val := fieldFromIntf(v)
+	return f.SizeOf(val), nil
 }
 
 /*
@@ -96,11 +116,7 @@ func Pack(order binary.ByteOrder, v interface{}) (data []byte, err error) {
 		}
 	}()
 
-	val := reflect.ValueOf(v)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
-	}
-	f := fieldFromType(val.Type())
+	f, val := fieldFromIntf(v)
 	data = make([]byte, f.SizeOf(val))
 
 	e := encoder{buf: data, order: order}
