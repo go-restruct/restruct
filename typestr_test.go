@@ -78,7 +78,7 @@ func TestParseType(t *testing.T) {
 			assert.Equal(t, test.typ.String(), typ.String())
 		}
 		if err != nil {
-			assert.Equal(t, test.errstr, err.Error())
+			assert.Contains(t, err.Error(), test.errstr)
 		}
 	}
 }

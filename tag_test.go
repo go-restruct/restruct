@@ -121,7 +121,7 @@ func TestParseTag(t *testing.T) {
 		opts, err := parseTag(test.input)
 		assert.Equal(t, test.opts, opts)
 		if err != nil {
-			assert.Equal(t, test.errstr, err.Error())
+			assert.Contains(t, err.Error(), test.errstr)
 		}
 	}
 }
