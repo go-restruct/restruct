@@ -1,3 +1,5 @@
+ISC License
+
 Copyright © 2015, John Chadwick <johnwchadwick@gmail.com>
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
