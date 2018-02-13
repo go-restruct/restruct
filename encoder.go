@@ -227,13 +227,13 @@ func (e *encoder) write(f field, v reflect.Value) {
 	if f.SIndex != -1 {
 		sv := struc.Field(f.SIndex)
 
-		switch f.DefType.Kind() {
+		switch f.Type.Kind() {
 		case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			v.SetInt(int64(sv.Len()))
 		case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			v.SetUint(uint64(sv.Len()))
 		default:
-			panic(fmt.Errorf("unsupported sizeof type %s", f.DefType.String()))
+			panic(fmt.Errorf("unsupported sizeof type %s: %s", f.Type.String(), f.Name))
 		}
 	}
 

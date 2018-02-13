@@ -250,6 +250,19 @@ func TestUnpack(t *testing.T) {
 				Ints: []uint16{1, 2, 3},
 			},
 		},
+		{
+			data: []byte{
+				0x00, 0x00, 0x00, 0x01,
+				0x00, 0x00, 0x00, 0x03,
+			},
+			value: struct {
+				Size  int `struct:"int32,sizeof=Array"`
+				Array []int32
+			}{
+				Size:  1,
+				Array: []int32{3},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -298,12 +311,12 @@ func TestUnpackBrokenSizeOf(t *testing.T) {
 	// Test unpacking
 	err := Unpack(data, binary.BigEndian, &s)
 	assert.NotNil(t, err)
-	assert.Equal(t, "unsupported sizeof type string", err.Error())
+	assert.Equal(t, "unsupported sizeof type string: Length", err.Error())
 
 	// Test packing
 	_, err = Pack(binary.BigEndian, &s)
 	assert.NotNil(t, err)
-	assert.Equal(t, "unsupported sizeof type string", err.Error())
+	assert.Equal(t, "unsupported sizeof type string: Length", err.Error())
 
 	// Test unpacking sizeof to array fails.
 	s2 := struct {

@@ -286,13 +286,13 @@ func (d *decoder) read(f field, v reflect.Value) {
 			sl := 0
 
 			// Must use different codepath for signed/unsigned.
-			switch f.DefType.Kind() {
+			switch f.Type.Kind() {
 			case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				sl = int(v.Int())
 			case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 				sl = int(v.Uint())
 			default:
-				panic(fmt.Errorf("unsupported sizeof type %s", f.DefType.String()))
+				panic(fmt.Errorf("unsupported sizeof type %s: %s", f.Type.String(), f.Name))
 			}
 
 			// Strings are immutable, but we make a blank one so that we can
