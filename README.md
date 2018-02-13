@@ -57,12 +57,12 @@ import (
 )
 
 type Record struct {
-	Message string `struct:[128]byte`
+	Message string `struct:"[128]byte"`
 }
 
 type Container struct {
-	Version   int `struct:int32`
-	NumRecord int `struct:int32,sizeof=Records`
+	Version   int `struct:"int32"`
+	NumRecord int `struct:"int32,sizeof=Records"`
 	Records   []Record
 }
 
