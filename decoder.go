@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strings"
 )
 
 // Unpacker is a type capable of unpacking a binary representation of itself
@@ -193,7 +194,13 @@ func (d *decoder) read(f field, v reflect.Value) {
 
 		switch f.DefType.Kind() {
 		case reflect.String:
-			v.SetString(string(d.readn(f.SizeOf(v))))
+			// When using strings, treat as C string.
+			str := string(d.readn(f.SizeOf(v)))
+			nul := strings.IndexByte(str, 0)
+			if nul != -1 {
+				str = str[0:nul]
+			}
+			v.SetString(str)
 		case reflect.Slice, reflect.Array:
 			ef := f.Elem()
 			for i := 0; i < l; i++ {

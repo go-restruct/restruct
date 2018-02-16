@@ -218,6 +218,18 @@ func TestUnpack(t *testing.T) {
 		},
 		{
 			data: []byte{
+				0xf0, 0x9f, 0x91, 0x8c, 0x00, 0x00, 0x00, 0x01,
+			},
+			value: struct {
+				String string `struct:"[7]byte"`
+				Value  byte
+			}{
+				String: "👌",
+				Value:  1,
+			},
+		},
+		{
+			data: []byte{
 				0x00, 0x02, 0x00,
 				0x00, 0x00,
 				0x00, 0x22, 0x18,

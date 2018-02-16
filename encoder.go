@@ -242,9 +242,16 @@ func (e *encoder) write(f field, v reflect.Value) {
 		switch f.DefType.Kind() {
 		case reflect.Array, reflect.Slice, reflect.String:
 			ef := f.Elem()
-			l := v.Len()
-			for i := 0; i < l; i++ {
+			len := v.Len()
+			cap := len
+			if f.Type.Kind() == reflect.Array {
+				cap = f.Type.Len()
+			}
+			for i := 0; i < len; i++ {
 				e.write(ef, v.Index(i))
+			}
+			for i := len; i < cap; i++ {
+				e.write(ef, reflect.New(f.Type.Elem()).Elem())
 			}
 		default:
 			panic(fmt.Errorf("invalid array cast type: %s", f.DefType.String()))
