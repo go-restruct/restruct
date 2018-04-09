@@ -167,7 +167,6 @@ func main() {
 import (
     "encoding/binary"
     "io/ioutil"
-    "os"
 
     "gopkg.in/restruct.v1"
 )
@@ -185,9 +184,7 @@ type Container struct {
 func main() {
     var c Container
 
-    file, _ := os.Open("records")
-    defer file.Close()
-    data, _ := ioutil.ReadAll(file)
+    data, _ := ioutil.ReadFile("records")
 
     restruct.Unpack(data, binary.LittleEndian, &c)
 }
