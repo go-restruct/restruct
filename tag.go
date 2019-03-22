@@ -10,12 +10,14 @@ import (
 
 // tagOptions represents a parsed struct tag.
 type tagOptions struct {
-	Ignore  bool
-	Type    reflect.Type
-	SizeOf  string
-	Skip    int
-	Order   binary.ByteOrder
-	BitSize uint8 // size in bits - only for int types
+	Ignore           bool
+	Type             reflect.Type
+	SizeOf           string
+	Skip             int
+	Order            binary.ByteOrder
+	BitSize          uint8
+	VariantBoolFlag  bool
+	InvertedBoolFlag bool
 }
 
 // mustParseTag calls ParseTag but panics if there is an error, to help make
@@ -53,6 +55,10 @@ func parseTag(tag string) (tagOptions, error) {
 		case "msb", "big", "network":
 			result.Order = binary.BigEndian
 			continue
+		case "variantbool":
+			result.VariantBoolFlag = true
+		case "invertedbool":
+			result.InvertedBoolFlag = true
 		default:
 			if strings.HasPrefix(part, "sizeof=") {
 				result.SizeOf = part[7:]

@@ -7,6 +7,19 @@ import (
 	"sync"
 )
 
+// FieldFlags is a type for flags that can be applied to fields individually.
+type FieldFlags uint64
+
+const (
+	// VariantBoolFlag causes the true value of a boolean to be ~0 instead of
+	// just 1 (all bits are set.) This emulates the behavior of VARIANT_BOOL.
+	VariantBoolFlag FieldFlags = 1 << iota
+
+	// InvertedBoolFlag causes the true and false states of a boolean to be
+	// flipped in binary.
+	InvertedBoolFlag
+)
+
 // Sizer is a type which has a defined size in binary. The SizeOf function
 // returns how many bytes the type will consume in memory. This is used during
 // encoding for allocation and therefore must equal the exact number of bytes
@@ -27,6 +40,7 @@ type field struct {
 	Skip       int
 	Trivial    bool
 	BitSize    uint8
+	Flags      FieldFlags
 }
 
 // fields represents a structure.
@@ -117,6 +131,15 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 			}
 		}
 
+		// Flags
+		flags := FieldFlags(0)
+		if opts.VariantBoolFlag {
+			flags |= VariantBoolFlag
+		}
+		if opts.InvertedBoolFlag {
+			flags |= InvertedBoolFlag
+		}
+
 		result = append(result, field{
 			Name:       val.Name,
 			Index:      i,
@@ -127,6 +150,7 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 			Skip:       opts.Skip,
 			Trivial:    isTypeTrivial(ftyp),
 			BitSize:    opts.BitSize,
+			Flags:      flags,
 		})
 	}
 
