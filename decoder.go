@@ -174,16 +174,16 @@ func (d *decoder) read(f field, v reflect.Value) {
 		d.skipn(f.Skip)
 	}
 
-	switch f.Type.Kind() {
+	switch f.BinaryType.Kind() {
 	case reflect.Array:
-		l := f.Type.Len()
+		l := f.BinaryType.Len()
 
 		// If the underlying value is a slice, initialize it.
-		if f.DefType.Kind() == reflect.Slice {
-			v.Set(reflect.MakeSlice(reflect.SliceOf(f.Type.Elem()), l, l))
+		if f.NativeType.Kind() == reflect.Slice {
+			v.Set(reflect.MakeSlice(reflect.SliceOf(f.BinaryType.Elem()), l, l))
 		}
 
-		switch f.DefType.Kind() {
+		switch f.NativeType.Kind() {
 		case reflect.String:
 			// When using strings, treat as C string.
 			str := string(d.readn(f.SizeOf(v)))
@@ -198,12 +198,12 @@ func (d *decoder) read(f field, v reflect.Value) {
 				d.read(ef, v.Index(i))
 			}
 		default:
-			panic(fmt.Errorf("invalid array cast type: %s", f.DefType.String()))
+			panic(fmt.Errorf("invalid array cast type: %s", f.NativeType.String()))
 		}
 
 	case reflect.Struct:
 		d.struc = v
-		d.sfields = cachedFieldsFromStruct(f.Type)
+		d.sfields = cachedFieldsFromStruct(f.BinaryType)
 		l := len(d.sfields)
 		for i := 0; i < l; i++ {
 			f := d.sfields[i]
@@ -218,12 +218,12 @@ func (d *decoder) read(f field, v reflect.Value) {
 		d.struc = struc
 
 	case reflect.Slice, reflect.String:
-		switch f.DefType.Kind() {
+		switch f.NativeType.Kind() {
 		case reflect.String:
 			l := v.Len()
 			v.SetString(string(d.readn(l)))
 		case reflect.Slice, reflect.Array:
-			switch f.DefType.Elem().Kind() {
+			switch f.NativeType.Elem().Kind() {
 			case reflect.Uint8:
 				v.SetBytes(d.readn(f.SizeOf(v)))
 			default:
@@ -234,7 +234,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 				}
 			}
 		default:
-			panic(fmt.Errorf("invalid array cast type: %s", f.DefType.String()))
+			panic(fmt.Errorf("invalid array cast type: %s", f.NativeType.String()))
 		}
 
 	case reflect.Int8:
@@ -284,25 +284,25 @@ func (d *decoder) read(f field, v reflect.Value) {
 			sl := 0
 
 			// Must use different codepath for signed/unsigned.
-			switch f.Type.Kind() {
+			switch f.BinaryType.Kind() {
 			case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				sl = int(v.Int())
 			case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 				sl = int(v.Uint())
 			default:
-				panic(fmt.Errorf("unsupported sizeof type %s: %s", f.Type.String(), f.Name))
+				panic(fmt.Errorf("unsupported sizeof type %s: %s", f.BinaryType.String(), f.Name))
 			}
 
 			// Strings are immutable, but we make a blank one so that we can
 			// figure out the size later. It might be better to do something
 			// more hackish, like writing the length into the string...
-			switch sf.DefType.Kind() {
+			switch sf.NativeType.Kind() {
 			case reflect.Slice:
-				sv.Set(reflect.MakeSlice(sf.Type, sl, sl))
+				sv.Set(reflect.MakeSlice(sf.BinaryType, sl, sl))
 			case reflect.String:
 				sv.SetString(string(make([]byte, sl)))
 			default:
-				panic(fmt.Errorf("unsupported sizeof target %s", sf.DefType.String()))
+				panic(fmt.Errorf("unsupported sizeof target %s", sf.NativeType.String()))
 			}
 		}
 	}

@@ -219,39 +219,39 @@ func (e *encoder) write(f field, v reflect.Value) {
 	if f.SIndex != -1 {
 		sv := struc.Field(f.SIndex)
 
-		switch f.Type.Kind() {
+		switch f.BinaryType.Kind() {
 		case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			v.SetInt(int64(sv.Len()))
 		case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			v.SetUint(uint64(sv.Len()))
 		default:
-			panic(fmt.Errorf("unsupported sizeof type %s: %s", f.Type.String(), f.Name))
+			panic(fmt.Errorf("unsupported sizeof type %s: %s", f.BinaryType.String(), f.Name))
 		}
 	}
 
-	switch f.Type.Kind() {
+	switch f.BinaryType.Kind() {
 	case reflect.Array, reflect.Slice, reflect.String:
-		switch f.DefType.Kind() {
+		switch f.NativeType.Kind() {
 		case reflect.Array, reflect.Slice, reflect.String:
 			ef := f.Elem()
 			len := v.Len()
 			cap := len
-			if f.Type.Kind() == reflect.Array {
-				cap = f.Type.Len()
+			if f.BinaryType.Kind() == reflect.Array {
+				cap = f.BinaryType.Len()
 			}
 			for i := 0; i < len; i++ {
 				e.write(ef, v.Index(i))
 			}
 			for i := len; i < cap; i++ {
-				e.write(ef, reflect.New(f.Type.Elem()).Elem())
+				e.write(ef, reflect.New(f.BinaryType.Elem()).Elem())
 			}
 		default:
-			panic(fmt.Errorf("invalid array cast type: %s", f.DefType.String()))
+			panic(fmt.Errorf("invalid array cast type: %s", f.NativeType.String()))
 		}
 
 	case reflect.Struct:
 		e.struc = v
-		e.sfields = cachedFieldsFromStruct(f.Type)
+		e.sfields = cachedFieldsFromStruct(f.BinaryType)
 		l := len(e.sfields)
 		for i := 0; i < l; i++ {
 			sf := e.sfields[i]
