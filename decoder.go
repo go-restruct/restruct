@@ -82,18 +82,9 @@ func (d *decoder) readBits(f field, outputLength uint8) []byte {
 	// therefore we apply a mask to erase those unaddressable bits
 	output[outputInitialIdx] &= ((0x01 << destPos) - 1)
 
-	// now we need to update the head of the incoming buffer and the bitCounter
-	d.bitCounter = (d.bitCounter + f.BitSize) % 8
-
-	// move the head to the next non-complete byte used
-	headerUpdate := func() uint8 {
-		if (d.bitCounter == 0) && ((f.BitSize % 8) != 0) {
-			return (numBytes + 1)
-		}
-		return numBytes
-	}
-
-	d.buf = d.buf[headerUpdate():]
+	d.bitCounter += f.BitSize
+	d.buf = d.buf[d.bitCounter/8:]
+	d.bitCounter %= 8
 	return output
 }
 

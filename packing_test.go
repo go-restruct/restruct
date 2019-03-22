@@ -275,6 +275,29 @@ func TestUnpack(t *testing.T) {
 				Array: []int32{3},
 			},
 		},
+		{
+			data: []byte{
+				0xff, 0xff, 0xff, 0xff,
+				0xff, 0xff, 0xff, 0xff,
+			},
+			value: struct {
+				A uint64 `struct:"uint64:12"`
+				B uint64 `struct:"uint64:12"`
+				C uint64 `struct:"uint64:30"`
+				D uint64 `struct:"uint64:1"`
+				E uint64 `struct:"uint64:5"`
+				F uint64 `struct:"uint64:1"`
+				G uint64 `struct:"uint64:3"`
+			}{
+				A: 0xfff,
+				B: 0xfff,
+				C: 0x3fffffff,
+				D: 0x1,
+				E: 0x1f,
+				F: 0x1,
+				G: 0x7,
+			},
+		},
 	}
 
 	for _, test := range tests {

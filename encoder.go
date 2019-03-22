@@ -114,17 +114,9 @@ func (e *encoder) writeBits(f field, inBuf []byte) {
 		}
 	}
 
-	//now we should update buffer and bitCounter
-	e.bitCounter = (e.bitCounter + f.BitSize) % 8
-
-	// move the head to the next non-complete byte used
-	headerUpdate := func() uint8 {
-		if (e.bitCounter == 0) && ((f.BitSize % 8) != 0) {
-			return (numBytes + 1)
-		}
-		return numBytes
-	}
-	e.buf = e.buf[headerUpdate():]
+	e.bitCounter += f.BitSize
+	e.buf = e.buf[e.bitCounter/8:]
+	e.bitCounter %= 8
 	return
 }
 
