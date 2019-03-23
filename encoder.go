@@ -254,8 +254,8 @@ func (e *encoder) write(f field, v reflect.Value) {
 	}
 
 	// If this is a sizeof field, pull the current slice length into it.
-	if f.SIndex != -1 {
-		sv := struc.Field(f.SIndex)
+	if f.TIndex != -1 {
+		sv := struc.Field(f.TIndex)
 
 		switch f.BinaryType.Kind() {
 		case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -263,7 +263,7 @@ func (e *encoder) write(f field, v reflect.Value) {
 		case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			v.SetUint(uint64(sv.Len()))
 		default:
-			panic(fmt.Errorf("unsupported sizeof type %s: %s", f.BinaryType.String(), f.Name))
+			panic(fmt.Errorf("unsupported size type %s: %s", f.BinaryType.String(), f.Name))
 		}
 	}
 

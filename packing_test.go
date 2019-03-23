@@ -277,6 +277,19 @@ func TestUnpack(t *testing.T) {
 		},
 		{
 			data: []byte{
+				0x00, 0x00, 0x00, 0x01,
+				0x00, 0x00, 0x00, 0x03,
+			},
+			value: struct {
+				Size  int     `struct:"int32"`
+				Array []int32 `struct:"sizefrom=Size"`
+			}{
+				Size:  1,
+				Array: []int32{3},
+			},
+		},
+		{
+			data: []byte{
 				0xff, 0xff, 0xff, 0xff,
 				0xff, 0xff, 0xff, 0xff,
 			},
@@ -414,12 +427,12 @@ func TestUnpackBrokenSizeOf(t *testing.T) {
 	// Test unpacking
 	err := Unpack(data, binary.BigEndian, &s)
 	assert.NotNil(t, err)
-	assert.Equal(t, "unsupported sizeof type string: Length", err.Error())
+	assert.Equal(t, "unsupported size type string: Length", err.Error())
 
 	// Test packing
 	_, err = Pack(binary.BigEndian, &s)
 	assert.NotNil(t, err)
-	assert.Equal(t, "unsupported sizeof type string: Length", err.Error())
+	assert.Equal(t, "unsupported size type string: Length", err.Error())
 
 	// Test unpacking sizeof to array fails.
 	s2 := struct {
@@ -435,7 +448,7 @@ func TestUnpackBrokenSizeOf(t *testing.T) {
 
 	err = Unpack(data, binary.BigEndian, &s2)
 	assert.NotNil(t, err)
-	assert.Equal(t, "unsupported sizeof target [2]int16", err.Error())
+	assert.Equal(t, "unsupported size target [2]int16", err.Error())
 }
 
 func TestUnpackBrokenArray(t *testing.T) {
