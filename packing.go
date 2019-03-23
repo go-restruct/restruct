@@ -57,10 +57,14 @@ following struct tag syntax is supported:
 
 Flags are comma-separated keys. The following are available:
 
-	type              A bare type name, e.g. int32 or []string.
+	type              A bare type name, e.g. int32 or []string. For integer
+	                  types, it is possible to specify the number of bits,
+	                  allowing the definition of bitfields, by appending a
+	                  colon followed by the number of bits. For example,
+	                  uint32:20 would specify a field that is 20 bits long.
 
 	sizeof=[Field]    Specifies that the field should be treated as a count of
-					  the number of elements in Field.
+	                  the number of elements in Field.
 
 	sizefrom=[Field]  Specifies that the field should determine the number of
 	                  elements in itself by reading the counter in Field.
@@ -69,16 +73,16 @@ Flags are comma-separated keys. The following are available:
 	                  e.g. emulate C structure alignment.
 
 	big,msb           Specifies big endian byte order. When applied to
-					  structs, this will apply to all fields under the struct.
+	                  structs, this will apply to all fields under the struct.
 
 	little,lsb        Specifies little endian byte order. When applied to
-					  structs, this will apply to all fields under the struct.
+	                  structs, this will apply to all fields under the struct.
 
 	variantbool       Specifies that the boolean `true` value should be
 	                  encoded as -1 instead of 1.
 
 	invertedbool      Specifies that the `true` and `false` encodings for
-					  boolean should be swapped.
+	                  boolean should be swapped.
 */
 func Unpack(data []byte, order binary.ByteOrder, v interface{}) (err error) {
 	defer func() {
