@@ -132,6 +132,15 @@ func main() {
       </td>
     </tr>
     <tr>
+      <td><pre><code>sizefrom=[Field]</code></pre></td>
+      <td>
+        Specifies that the size of this field should be taken from the count in
+        <code>Field</code>. Using this flag, you can get the same functionality
+        as <code>sizeof=[Field]</code>, but with the relationship reversed,
+        allowing, for example, multiple fields that use the same size counter.
+      </td>
+    </tr>
+    <tr>
       <td><pre><code>skip=[Count]</code></pre></td>
       <td>
         Specifies an offset to skip before this field. This can be used to,
@@ -152,6 +161,21 @@ func main() {
       <td><pre><code>little</code></pre></td>
       <td>
         Like the above, but specifies little endian instead.
+      </td>
+    </tr>
+    <tr>
+      <td><pre><code>variantbool</code></pre></td>
+      <td>
+        When encoding boolean values, this flag will cause the `true` state to
+        be encoded as `^0` (all bits set) instead of `1` (first bit set.) This
+        emulates the `VARIANT_BOOL` type.
+      </td>
+    </tr>
+    <tr>
+      <td><pre><code>invertedbool</code></pre></td>
+      <td>
+        When encoding boolean values, this flag will cause the `true` and
+        `false` encodings to be swapped.
       </td>
     </tr>
   </tbody>
