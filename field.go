@@ -36,7 +36,8 @@ type field struct {
 	BinaryType reflect.Type
 	NativeType reflect.Type
 	Order      binary.ByteOrder
-	SIndex     int
+	SIndex     int // Index of size field for a slice/string.
+	TIndex     int // Index of target of sizeof field.
 	Skip       int
 	Trivial    bool
 	BitSize    uint8
@@ -69,6 +70,7 @@ func (f *field) Elem() field {
 		BinaryType: t.Elem(),
 		NativeType: dt.Elem(),
 		Order:      f.Order,
+		TIndex:     -1,
 		SIndex:     -1,
 		Skip:       0,
 		Trivial:    f.Trivial,
@@ -82,6 +84,7 @@ func fieldFromType(typ reflect.Type) field {
 		BinaryType: typ,
 		NativeType: typ,
 		Order:      nil,
+		TIndex:     -1,
 		SIndex:     -1,
 		Skip:       0,
 		Trivial:    isTypeTrivial(typ),
@@ -95,6 +98,8 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 	}
 
 	count := typ.NumField()
+
+	sizeOfMap := map[string]int{}
 
 	for i := 0; i < count; i++ {
 		val := typ.Field(i)
@@ -118,16 +123,26 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 
 		// SizeOf
 		sindex := -1
-		if opts.SizeOf != "" {
-			count := typ.NumField()
-			for j := i + 1; j < count; j++ {
-				val := typ.Field(j)
-				if opts.SizeOf == val.Name {
+		tindex := -1
+		if j, ok := sizeOfMap[val.Name]; ok {
+			sindex = j
+			result[sindex].TIndex = i
+			delete(sizeOfMap, val.Name)
+		} else if opts.SizeOf != "" {
+			sizeOfMap[opts.SizeOf] = i
+		}
+
+		// SizeFrom
+		if opts.SizeFrom != "" {
+			for j := 0; j < i; j++ {
+				val := result[j]
+				if opts.SizeFrom == val.Name {
 					sindex = j
+					result[sindex].TIndex = i
 				}
 			}
 			if sindex == -1 {
-				panic(fmt.Errorf("couldn't find SizeOf field %s", opts.SizeOf))
+				panic(fmt.Errorf("couldn't find SizeFrom field %s", opts.SizeFrom))
 			}
 		}
 
@@ -147,11 +162,16 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 			NativeType: val.Type,
 			Order:      opts.Order,
 			SIndex:     sindex,
+			TIndex:     tindex,
 			Skip:       opts.Skip,
 			Trivial:    isTypeTrivial(ftyp),
 			BitSize:    opts.BitSize,
 			Flags:      flags,
 		})
+	}
+
+	for fieldName := range sizeOfMap {
+		panic(fmt.Errorf("couldn't find SizeOf field %s", fieldName))
 	}
 
 	return

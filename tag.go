@@ -13,6 +13,7 @@ type tagOptions struct {
 	Ignore           bool
 	Type             reflect.Type
 	SizeOf           string
+	SizeFrom         string
 	Skip             int
 	Order            binary.ByteOrder
 	BitSize          uint8
@@ -62,6 +63,9 @@ func parseTag(tag string) (tagOptions, error) {
 		default:
 			if strings.HasPrefix(part, "sizeof=") {
 				result.SizeOf = part[7:]
+				continue
+			} else if strings.HasPrefix(part, "sizefrom=") {
+				result.SizeFrom = part[9:]
 				continue
 			} else if strings.HasPrefix(part, "skip=") {
 				var err error

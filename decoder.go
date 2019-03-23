@@ -200,6 +200,43 @@ func (d *decoder) read(f field, v reflect.Value) {
 		d.skipn(f.Skip)
 	}
 
+	if f.SIndex != -1 {
+		sv := struc.Field(f.SIndex)
+		l := len(sfields)
+		for i := 0; i < l; i++ {
+			if sfields[i].Index != f.SIndex {
+				continue
+			}
+
+			sf := sfields[i]
+			sl := 0
+
+			// Must use different codepath for signed/unsigned.
+			switch sf.BinaryType.Kind() {
+			case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				sl = int(sv.Int())
+			case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				sl = int(sv.Uint())
+			default:
+				panic(fmt.Errorf("unsupported size type %s: %s", sf.BinaryType.String(), sf.Name))
+			}
+
+			// Strings are immutable, but we make a blank one so that we can
+			// figure out the size later. It might be better to do something
+			// more hackish, like writing the length into the string...
+			switch f.NativeType.Kind() {
+			case reflect.Slice:
+				v.Set(reflect.MakeSlice(f.BinaryType, sl, sl))
+			case reflect.String:
+				v.SetString(string(make([]byte, sl)))
+			default:
+				panic(fmt.Errorf("unsupported size target %s", f.NativeType.String()))
+			}
+
+			break
+		}
+	}
+
 	switch f.BinaryType.Kind() {
 	case reflect.Array:
 		l := f.BinaryType.Len()
@@ -296,40 +333,5 @@ func (d *decoder) read(f field, v reflect.Value) {
 			math.Float64frombits(d.read64(f)),
 			math.Float64frombits(d.read64(f)),
 		))
-	}
-
-	if f.SIndex != -1 {
-		sv := struc.Field(f.SIndex)
-		l := len(sfields)
-		for i := 0; i < l; i++ {
-			if sfields[i].Index != f.SIndex {
-				continue
-			}
-
-			sf := sfields[i]
-			sl := 0
-
-			// Must use different codepath for signed/unsigned.
-			switch f.BinaryType.Kind() {
-			case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				sl = int(v.Int())
-			case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				sl = int(v.Uint())
-			default:
-				panic(fmt.Errorf("unsupported sizeof type %s: %s", f.BinaryType.String(), f.Name))
-			}
-
-			// Strings are immutable, but we make a blank one so that we can
-			// figure out the size later. It might be better to do something
-			// more hackish, like writing the length into the string...
-			switch sf.NativeType.Kind() {
-			case reflect.Slice:
-				sv.Set(reflect.MakeSlice(sf.BinaryType, sl, sl))
-			case reflect.String:
-				sv.SetString(string(make([]byte, sl)))
-			default:
-				panic(fmt.Errorf("unsupported sizeof target %s", sf.NativeType.String()))
-			}
-		}
 	}
 }
