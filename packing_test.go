@@ -332,12 +332,12 @@ func TestUnpack(t *testing.T) {
 				NonVariant8BitTrueInverted   bool `struct:"bool,invertedbool"`
 				Variant8BitTrueInverted      bool `struct:"bool,invertedbool,variantbool"`
 				NonVariant32BitFalse         bool `struct:"int32"`
-				Variant32BitFalse            bool `struct:"int32,variantbool"`
-				NonVariant32BitTrue          bool `struct:"int32"`
+				Variant32BitFalse            bool `struct:"uint32,variantbool"`
+				NonVariant32BitTrue          bool `struct:"uint32"`
 				Variant32BitTrue             bool `struct:"int32,variantbool"`
 				NonVariant32BitFalseInverted bool `struct:"uint32,invertedbool"`
-				Variant32BitFalseInverted    bool `struct:"uint32,invertedbool,variantbool"`
-				NonVariant32BitTrueInverted  bool `struct:"uint32,invertedbool"`
+				Variant32BitFalseInverted    bool `struct:"int32,invertedbool,variantbool"`
+				NonVariant32BitTrueInverted  bool `struct:"int32,invertedbool"`
 				Variant32BitTrueInverted     bool `struct:"uint32,invertedbool,variantbool"`
 			}{
 				NonVariant8BitFalse:          false,
