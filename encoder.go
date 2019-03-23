@@ -187,6 +187,44 @@ func (e *encoder) packer(v reflect.Value) (Packer, bool) {
 	return nil, false
 }
 
+func (e *encoder) intFromField(f field, v reflect.Value) int64 {
+	switch v.Kind() {
+	case reflect.Bool:
+		b := v.Bool()
+		if f.Flags&InvertedBoolFlag == InvertedBoolFlag {
+			b = !b
+		}
+		if b {
+			if f.Flags&VariantBoolFlag == VariantBoolFlag {
+				return -1
+			}
+			return 1
+		}
+		return 0
+	default:
+		return v.Int()
+	}
+}
+
+func (e *encoder) uintFromField(f field, v reflect.Value) uint64 {
+	switch v.Kind() {
+	case reflect.Bool:
+		b := v.Bool()
+		if f.Flags&InvertedBoolFlag == InvertedBoolFlag {
+			b = !b
+		}
+		if b {
+			if f.Flags&VariantBoolFlag == VariantBoolFlag {
+				return ^uint64(0)
+			}
+			return 1
+		}
+		return 0
+	default:
+		return v.Uint()
+	}
+}
+
 func (e *encoder) write(f field, v reflect.Value) {
 	if f.Name != "_" {
 		if s, ok := e.packer(v); ok {
@@ -219,39 +257,39 @@ func (e *encoder) write(f field, v reflect.Value) {
 	if f.SIndex != -1 {
 		sv := struc.Field(f.SIndex)
 
-		switch f.Type.Kind() {
+		switch f.BinaryType.Kind() {
 		case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			v.SetInt(int64(sv.Len()))
 		case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			v.SetUint(uint64(sv.Len()))
 		default:
-			panic(fmt.Errorf("unsupported sizeof type %s: %s", f.Type.String(), f.Name))
+			panic(fmt.Errorf("unsupported sizeof type %s: %s", f.BinaryType.String(), f.Name))
 		}
 	}
 
-	switch f.Type.Kind() {
+	switch f.BinaryType.Kind() {
 	case reflect.Array, reflect.Slice, reflect.String:
-		switch f.DefType.Kind() {
+		switch f.NativeType.Kind() {
 		case reflect.Array, reflect.Slice, reflect.String:
 			ef := f.Elem()
 			len := v.Len()
 			cap := len
-			if f.Type.Kind() == reflect.Array {
-				cap = f.Type.Len()
+			if f.BinaryType.Kind() == reflect.Array {
+				cap = f.BinaryType.Len()
 			}
 			for i := 0; i < len; i++ {
 				e.write(ef, v.Index(i))
 			}
 			for i := len; i < cap; i++ {
-				e.write(ef, reflect.New(f.Type.Elem()).Elem())
+				e.write(ef, reflect.New(f.BinaryType.Elem()).Elem())
 			}
 		default:
-			panic(fmt.Errorf("invalid array cast type: %s", f.DefType.String()))
+			panic(fmt.Errorf("invalid array cast type: %s", f.NativeType.String()))
 		}
 
 	case reflect.Struct:
 		e.struc = v
-		e.sfields = cachedFieldsFromStruct(f.Type)
+		e.sfields = cachedFieldsFromStruct(f.BinaryType)
 		l := len(e.sfields)
 		for i := 0; i < l; i++ {
 			sf := e.sfields[i]
@@ -266,22 +304,22 @@ func (e *encoder) write(f field, v reflect.Value) {
 		e.struc = struc
 
 	case reflect.Int8:
-		e.writeS8(f, int8(v.Int()))
+		e.writeS8(f, int8(e.intFromField(f, v)))
 	case reflect.Int16:
-		e.writeS16(f, int16(v.Int()))
+		e.writeS16(f, int16(e.intFromField(f, v)))
 	case reflect.Int32:
-		e.writeS32(f, int32(v.Int()))
+		e.writeS32(f, int32(e.intFromField(f, v)))
 	case reflect.Int64:
-		e.writeS64(f, int64(v.Int()))
+		e.writeS64(f, int64(e.intFromField(f, v)))
 
-	case reflect.Uint8:
-		e.write8(f, uint8(v.Uint()))
+	case reflect.Uint8, reflect.Bool:
+		e.write8(f, uint8(e.uintFromField(f, v)))
 	case reflect.Uint16:
-		e.write16(f, uint16(v.Uint()))
+		e.write16(f, uint16(e.uintFromField(f, v)))
 	case reflect.Uint32:
-		e.write32(f, uint32(v.Uint()))
+		e.write32(f, uint32(e.uintFromField(f, v)))
 	case reflect.Uint64:
-		e.write64(f, uint64(v.Uint()))
+		e.write64(f, uint64(e.uintFromField(f, v)))
 
 	case reflect.Float32:
 		e.write32(f, math.Float32bits(float32(v.Float())))

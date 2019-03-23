@@ -22,7 +22,7 @@ func TestFieldsFromStruct(t *testing.T) {
 				Simple int
 			}{},
 			fields{
-				field{"Simple", 0, intType, intType, nil, -1, 0, true, 0},
+				field{"Simple", 0, intType, intType, nil, -1, 0, true, 0, 0},
 			},
 		},
 		{
@@ -32,8 +32,20 @@ func TestFieldsFromStruct(t *testing.T) {
 				After  bool
 			}{},
 			fields{
-				field{"Before", 0, intType, intType, nil, -1, 0, true, 0},
-				field{"After", 2, boolType, boolType, nil, -1, 0, true, 0},
+				field{"Before", 0, intType, intType, nil, -1, 0, true, 0, 0},
+				field{"After", 2, boolType, boolType, nil, -1, 0, true, 0, 0},
+			},
+		},
+		{
+			struct {
+				VariantBool         bool `struct:"variantbool"`
+				InvertedBool        bool `struct:"invertedbool"`
+				InvertedVariantBool bool `struct:"variantbool,invertedbool"`
+			}{},
+			fields{
+				field{"VariantBool", 0, boolType, boolType, nil, -1, 0, true, 0, VariantBoolFlag},
+				field{"InvertedBool", 1, boolType, boolType, nil, -1, 0, true, 0, InvertedBoolFlag},
+				field{"InvertedVariantBool", 2, boolType, boolType, nil, -1, 0, true, 0, VariantBoolFlag | InvertedBoolFlag},
 			},
 		},
 		{
@@ -42,8 +54,8 @@ func TestFieldsFromStruct(t *testing.T) {
 				LSBInt   int    `struct:"uint32,little"`
 			}{},
 			fields{
-				field{"FixedStr", 0, reflect.TypeOf([64]byte{}), strType, nil, -1, 4, true, 0},
-				field{"LSBInt", 1, reflect.TypeOf(uint32(0)), intType, binary.LittleEndian, -1, 0, true, 0},
+				field{"FixedStr", 0, reflect.TypeOf([64]byte{}), strType, nil, -1, 4, true, 0, 0},
+				field{"LSBInt", 1, reflect.TypeOf(uint32(0)), intType, binary.LittleEndian, -1, 0, true, 0, 0},
 			},
 		},
 		{
@@ -53,22 +65,22 @@ func TestFieldsFromStruct(t *testing.T) {
 			}{},
 			fields{
 				field{
-					Name:    "NumColors",
-					Index:   0,
-					Type:    reflect.TypeOf(int32(0)),
-					DefType: reflect.TypeOf(int32(0)),
-					SIndex:  1,
-					Skip:    0,
-					Trivial: true,
+					Name:       "NumColors",
+					Index:      0,
+					BinaryType: reflect.TypeOf(int32(0)),
+					NativeType: reflect.TypeOf(int32(0)),
+					SIndex:     1,
+					Skip:       0,
+					Trivial:    true,
 				},
 				field{
-					Name:    "Colors",
-					Index:   1,
-					Type:    reflect.TypeOf([][4]uint8{}),
-					DefType: reflect.TypeOf([][4]uint8{}),
-					SIndex:  -1,
-					Skip:    0,
-					Trivial: false,
+					Name:       "Colors",
+					Index:      1,
+					BinaryType: reflect.TypeOf([][4]uint8{}),
+					NativeType: reflect.TypeOf([][4]uint8{}),
+					SIndex:     -1,
+					Skip:       0,
+					Trivial:    false,
 				},
 			},
 		},

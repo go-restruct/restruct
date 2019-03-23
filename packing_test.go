@@ -298,6 +298,74 @@ func TestUnpack(t *testing.T) {
 				G: 0x7,
 			},
 		},
+		{
+			data: []byte{
+				// nonvariant/variant 8-bit
+				// false, false, true, true
+				0x00, 0x00, 0x01, 0xFF,
+
+				// nonvariant/variant 8-bit inverted
+				// false, false, true, true
+				0x01, 0xFF, 0x00, 0x00,
+
+				// nonvariant/variant 32-bit
+				// false, false, true, true
+				0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x01,
+				0xFF, 0xFF, 0xFF, 0xFF,
+
+				// nonvariant/variant 32-bit inverted
+				// false, false, true, true
+				0x00, 0x00, 0x00, 0x01,
+				0xFF, 0xFF, 0xFF, 0xFF,
+				0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00,
+			},
+			value: struct {
+				NonVariant8BitFalse          bool `struct:"bool"`
+				Variant8BitFalse             bool `struct:"bool,variantbool"`
+				NonVariant8BitTrue           bool `struct:"bool"`
+				Variant8BitTrue              bool `struct:"bool,variantbool"`
+				NonVariant8BitFalseInverted  bool `struct:"bool,invertedbool"`
+				Variant8BitFalseInverted     bool `struct:"bool,invertedbool,variantbool"`
+				NonVariant8BitTrueInverted   bool `struct:"bool,invertedbool"`
+				Variant8BitTrueInverted      bool `struct:"bool,invertedbool,variantbool"`
+				NonVariant32BitFalse         bool `struct:"int32"`
+				Variant32BitFalse            bool `struct:"uint32,variantbool"`
+				NonVariant32BitTrue          bool `struct:"uint32"`
+				Variant32BitTrue             bool `struct:"int32,variantbool"`
+				NonVariant32BitFalseInverted bool `struct:"uint32,invertedbool"`
+				Variant32BitFalseInverted    bool `struct:"int32,invertedbool,variantbool"`
+				NonVariant32BitTrueInverted  bool `struct:"int32,invertedbool"`
+				Variant32BitTrueInverted     bool `struct:"uint32,invertedbool,variantbool"`
+			}{
+				NonVariant8BitFalse:          false,
+				Variant8BitFalse:             false,
+				NonVariant8BitTrue:           true,
+				Variant8BitTrue:              true,
+				NonVariant8BitFalseInverted:  false,
+				Variant8BitFalseInverted:     false,
+				NonVariant8BitTrueInverted:   true,
+				Variant8BitTrueInverted:      true,
+				NonVariant32BitFalse:         false,
+				Variant32BitFalse:            false,
+				NonVariant32BitTrue:          true,
+				Variant32BitTrue:             true,
+				NonVariant32BitFalseInverted: false,
+				Variant32BitFalseInverted:    false,
+				NonVariant32BitTrueInverted:  true,
+				Variant32BitTrueInverted:     true,
+			},
+		},
+		{
+			data: []byte{0x80},
+			value: struct {
+				Bit bool `struct:"uint8:1"`
+			}{
+				Bit: true,
+			},
+		},
 	}
 
 	for _, test := range tests {

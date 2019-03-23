@@ -7,6 +7,19 @@ import (
 	"sync"
 )
 
+// FieldFlags is a type for flags that can be applied to fields individually.
+type FieldFlags uint64
+
+const (
+	// VariantBoolFlag causes the true value of a boolean to be ~0 instead of
+	// just 1 (all bits are set.) This emulates the behavior of VARIANT_BOOL.
+	VariantBoolFlag FieldFlags = 1 << iota
+
+	// InvertedBoolFlag causes the true and false states of a boolean to be
+	// flipped in binary.
+	InvertedBoolFlag
+)
+
 // Sizer is a type which has a defined size in binary. The SizeOf function
 // returns how many bytes the type will consume in memory. This is used during
 // encoding for allocation and therefore must equal the exact number of bytes
@@ -18,15 +31,16 @@ type Sizer interface {
 
 // field represents a structure field, similar to reflect.StructField.
 type field struct {
-	Name    string
-	Index   int
-	Type    reflect.Type
-	DefType reflect.Type
-	Order   binary.ByteOrder
-	SIndex  int
-	Skip    int
-	Trivial bool
-	BitSize uint8
+	Name       string
+	Index      int
+	BinaryType reflect.Type
+	NativeType reflect.Type
+	Order      binary.ByteOrder
+	SIndex     int
+	Skip       int
+	Trivial    bool
+	BitSize    uint8
+	Flags      FieldFlags
 }
 
 // fields represents a structure.
@@ -39,38 +53,38 @@ var cacheMutex = sync.RWMutex{}
 // or pointer.
 func (f *field) Elem() field {
 	// Special cases for string types, grumble grumble.
-	t := f.Type
+	t := f.BinaryType
 	if t.Kind() == reflect.String {
 		t = reflect.TypeOf([]byte{})
 	}
 
-	dt := f.DefType
+	dt := f.NativeType
 	if dt.Kind() == reflect.String {
 		dt = reflect.TypeOf([]byte{})
 	}
 
 	return field{
-		Name:    "*" + f.Name,
-		Index:   -1,
-		Type:    t.Elem(),
-		DefType: dt.Elem(),
-		Order:   f.Order,
-		SIndex:  -1,
-		Skip:    0,
-		Trivial: f.Trivial,
+		Name:       "*" + f.Name,
+		Index:      -1,
+		BinaryType: t.Elem(),
+		NativeType: dt.Elem(),
+		Order:      f.Order,
+		SIndex:     -1,
+		Skip:       0,
+		Trivial:    f.Trivial,
 	}
 }
 
 // fieldFromType returns a field from a reflected type.
 func fieldFromType(typ reflect.Type) field {
 	return field{
-		Index:   -1,
-		Type:    typ,
-		DefType: typ,
-		Order:   nil,
-		SIndex:  -1,
-		Skip:    0,
-		Trivial: isTypeTrivial(typ),
+		Index:      -1,
+		BinaryType: typ,
+		NativeType: typ,
+		Order:      nil,
+		SIndex:     -1,
+		Skip:       0,
+		Trivial:    isTypeTrivial(typ),
 	}
 }
 
@@ -117,16 +131,26 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 			}
 		}
 
+		// Flags
+		flags := FieldFlags(0)
+		if opts.VariantBoolFlag {
+			flags |= VariantBoolFlag
+		}
+		if opts.InvertedBoolFlag {
+			flags |= InvertedBoolFlag
+		}
+
 		result = append(result, field{
-			Name:    val.Name,
-			Index:   i,
-			Type:    ftyp,
-			DefType: val.Type,
-			Order:   opts.Order,
-			SIndex:  sindex,
-			Skip:    opts.Skip,
-			Trivial: isTypeTrivial(ftyp),
-			BitSize: opts.BitSize,
+			Name:       val.Name,
+			Index:      i,
+			BinaryType: ftyp,
+			NativeType: val.Type,
+			Order:      opts.Order,
+			SIndex:     sindex,
+			Skip:       opts.Skip,
+			Trivial:    isTypeTrivial(ftyp),
+			BitSize:    opts.BitSize,
+			Flags:      flags,
 		})
 	}
 
@@ -175,7 +199,7 @@ func isTypeTrivial(typ reflect.Type) bool {
 		return isTypeTrivial(typ.Elem())
 	case reflect.Struct:
 		for _, field := range cachedFieldsFromStruct(typ) {
-			if !isTypeTrivial(field.Type) {
+			if !isTypeTrivial(field.BinaryType) {
 				return false
 			}
 		}
@@ -217,14 +241,14 @@ func (f *field) SizeOf(val reflect.Value) (size int) {
 	}
 
 	alen := 1
-	switch f.Type.Kind() {
-	case reflect.Int8, reflect.Uint8:
+	switch f.BinaryType.Kind() {
+	case reflect.Int8, reflect.Uint8, reflect.Bool:
 		return 1 + f.Skip
 	case reflect.Int16, reflect.Uint16:
 		return 2 + f.Skip
 	case reflect.Int, reflect.Int32,
 		reflect.Uint, reflect.Uint32,
-		reflect.Bool, reflect.Float32:
+		reflect.Float32:
 		return 4 + f.Skip
 	case reflect.Int64, reflect.Uint64,
 		reflect.Float64, reflect.Complex64:
@@ -232,7 +256,7 @@ func (f *field) SizeOf(val reflect.Value) (size int) {
 	case reflect.Complex128:
 		return 16 + f.Skip
 	case reflect.Slice, reflect.String:
-		switch f.DefType.Kind() {
+		switch f.NativeType.Kind() {
 		case reflect.Slice, reflect.String, reflect.Array, reflect.Ptr:
 			alen = val.Len()
 		default:
@@ -243,8 +267,8 @@ func (f *field) SizeOf(val reflect.Value) (size int) {
 		size += f.Skip
 
 		// If array type, get length from type.
-		if f.Type.Kind() == reflect.Array {
-			alen = f.Type.Len()
+		if f.BinaryType.Kind() == reflect.Array {
+			alen = f.BinaryType.Len()
 		}
 
 		// Optimization: if the array/slice is empty, bail now.
@@ -254,11 +278,11 @@ func (f *field) SizeOf(val reflect.Value) (size int) {
 
 		// Optimization: if the type is trivial, we only need to check the
 		// first element.
-		switch f.DefType.Kind() {
+		switch f.NativeType.Kind() {
 		case reflect.Slice, reflect.String, reflect.Array, reflect.Ptr:
 			elem := f.Elem()
 			if f.Trivial {
-				size += elem.SizeOf(reflect.Zero(f.Type.Elem())) * alen
+				size += elem.SizeOf(reflect.Zero(f.BinaryType.Elem())) * alen
 			} else {
 				for i := 0; i < alen; i++ {
 					size += elem.SizeOf(val.Index(i))
@@ -269,7 +293,7 @@ func (f *field) SizeOf(val reflect.Value) (size int) {
 	case reflect.Struct:
 		size += f.Skip
 		var bitSize uint64
-		for _, field := range cachedFieldsFromStruct(f.Type) {
+		for _, field := range cachedFieldsFromStruct(f.BinaryType) {
 			if field.BitSize != 0 {
 				bitSize += uint64(field.BitSize)
 			} else {
