@@ -242,13 +242,13 @@ func (f *field) SizeOf(val reflect.Value) (size int) {
 
 	alen := 1
 	switch f.BinaryType.Kind() {
-	case reflect.Int8, reflect.Uint8:
+	case reflect.Int8, reflect.Uint8, reflect.Bool:
 		return 1 + f.Skip
 	case reflect.Int16, reflect.Uint16:
 		return 2 + f.Skip
 	case reflect.Int, reflect.Int32,
 		reflect.Uint, reflect.Uint32,
-		reflect.Bool, reflect.Float32:
+		reflect.Float32:
 		return 4 + f.Skip
 	case reflect.Int64, reflect.Uint64,
 		reflect.Float64, reflect.Complex64:

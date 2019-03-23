@@ -187,6 +187,44 @@ func (e *encoder) packer(v reflect.Value) (Packer, bool) {
 	return nil, false
 }
 
+func (e *encoder) intFromField(f field, v reflect.Value) int64 {
+	switch v.Kind() {
+	case reflect.Bool:
+		b := v.Bool()
+		if f.Flags&InvertedBoolFlag == InvertedBoolFlag {
+			b = !b
+		}
+		if b {
+			if f.Flags&VariantBoolFlag == VariantBoolFlag {
+				return -1
+			}
+			return 1
+		}
+		return 0
+	default:
+		return v.Int()
+	}
+}
+
+func (e *encoder) uintFromField(f field, v reflect.Value) uint64 {
+	switch v.Kind() {
+	case reflect.Bool:
+		b := v.Bool()
+		if f.Flags&InvertedBoolFlag == InvertedBoolFlag {
+			b = !b
+		}
+		if b {
+			if f.Flags&VariantBoolFlag == VariantBoolFlag {
+				return ^uint64(0)
+			}
+			return 1
+		}
+		return 0
+	default:
+		return v.Uint()
+	}
+}
+
 func (e *encoder) write(f field, v reflect.Value) {
 	if f.Name != "_" {
 		if s, ok := e.packer(v); ok {
@@ -266,22 +304,22 @@ func (e *encoder) write(f field, v reflect.Value) {
 		e.struc = struc
 
 	case reflect.Int8:
-		e.writeS8(f, int8(v.Int()))
+		e.writeS8(f, int8(e.intFromField(f, v)))
 	case reflect.Int16:
-		e.writeS16(f, int16(v.Int()))
+		e.writeS16(f, int16(e.intFromField(f, v)))
 	case reflect.Int32:
-		e.writeS32(f, int32(v.Int()))
+		e.writeS32(f, int32(e.intFromField(f, v)))
 	case reflect.Int64:
-		e.writeS64(f, int64(v.Int()))
+		e.writeS64(f, int64(e.intFromField(f, v)))
 
-	case reflect.Uint8:
-		e.write8(f, uint8(v.Uint()))
+	case reflect.Uint8, reflect.Bool:
+		e.write8(f, uint8(e.uintFromField(f, v)))
 	case reflect.Uint16:
-		e.write16(f, uint16(v.Uint()))
+		e.write16(f, uint16(e.uintFromField(f, v)))
 	case reflect.Uint32:
-		e.write32(f, uint32(v.Uint()))
+		e.write32(f, uint32(e.uintFromField(f, v)))
 	case reflect.Uint64:
-		e.write64(f, uint64(v.Uint()))
+		e.write64(f, uint64(e.uintFromField(f, v)))
 
 	case reflect.Float32:
 		e.write32(f, math.Float32bits(float32(v.Float())))

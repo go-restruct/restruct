@@ -146,6 +146,32 @@ func (d *decoder) unpacker(v reflect.Value) (Unpacker, bool) {
 	return nil, false
 }
 
+func (d *decoder) setUint(f field, v reflect.Value, x uint64) {
+	switch v.Kind() {
+	case reflect.Bool:
+		b := x != 0
+		if f.Flags&InvertedBoolFlag == InvertedBoolFlag {
+			b = !b
+		}
+		v.SetBool(b)
+	default:
+		v.SetUint(x)
+	}
+}
+
+func (d *decoder) setInt(f field, v reflect.Value, x int64) {
+	switch v.Kind() {
+	case reflect.Bool:
+		b := x != 0
+		if f.Flags&InvertedBoolFlag == InvertedBoolFlag {
+			b = !b
+		}
+		v.SetBool(b)
+	default:
+		v.SetInt(x)
+	}
+}
+
 func (d *decoder) read(f field, v reflect.Value) {
 	if f.Name != "_" {
 		if s, ok := d.unpacker(v); ok {
@@ -238,22 +264,22 @@ func (d *decoder) read(f field, v reflect.Value) {
 		}
 
 	case reflect.Int8:
-		v.SetInt(int64(d.readS8(f)))
+		d.setInt(f, v, int64(d.readS8(f)))
 	case reflect.Int16:
-		v.SetInt(int64(d.readS16(f)))
+		d.setInt(f, v, int64(d.readS16(f)))
 	case reflect.Int32:
-		v.SetInt(int64(d.readS32(f)))
+		d.setInt(f, v, int64(d.readS32(f)))
 	case reflect.Int64:
-		v.SetInt(d.readS64(f))
+		d.setInt(f, v, d.readS64(f))
 
-	case reflect.Uint8:
-		v.SetUint(uint64(d.read8(f)))
+	case reflect.Uint8, reflect.Bool:
+		d.setUint(f, v, uint64(d.read8(f)))
 	case reflect.Uint16:
-		v.SetUint(uint64(d.read16(f)))
+		d.setUint(f, v, uint64(d.read16(f)))
 	case reflect.Uint32:
-		v.SetUint(uint64(d.read32(f)))
+		d.setUint(f, v, uint64(d.read32(f)))
 	case reflect.Uint64:
-		v.SetUint(d.read64(f))
+		d.setUint(f, v, d.read64(f))
 
 	case reflect.Float32:
 		v.SetFloat(float64(math.Float32frombits(d.read32(f))))
