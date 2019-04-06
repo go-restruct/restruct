@@ -1,0 +1,116 @@
+_alpha: 'a'-'z' | 'A'-'Z';
+_digit: '0'-'9';
+_alphanum: _alpha | _digit;
+
+_octstart: '0';
+_octdigit: '0'-'7';
+
+_hexstart: '0' 'x' | '0' 'X';
+_hexdigit: '0'-'9' | 'a'-'f' | 'A'-'F';
+
+_idstart: _alpha | '_';
+_idchar: _alphanum | '_';
+
+_intspec: 'u' | 'U' | 'l' | 'L';
+_floatspec: 'f' | 'F' | 'l' | 'L';
+_exponent: ('e' | 'E') ['+' | '-'] {_digit};
+_floatmod: [_exponent] [_floatspec];
+_stringchar: '\\' '"' | .;
+_charchar: '\\' '\'' | .;
+
+ident: _idstart {_idchar};
+
+integer: {_digit} [_intspec] | _octstart {_octdigit} [_intspec] | _hexstart {_hexdigit} [_intspec];
+float: {_digit} [_floatmod] | {_digit} '.' {_digit} [_floatmod] | '.' {_digit} [_floatmod] | {_digit} '.' [_floatmod];
+string : '"' {_stringchar} '"';
+char: '\'' {_charchar} '\'';
+
+!whitespace: ' ' | '\t' | '\n' | '\r';
+
+<< import (
+    "github.com/go-restruct/restruct/internal/expr/ast"
+    "github.com/go-restruct/restruct/internal/expr/token"
+    "github.com/go-restruct/restruct/internal/expr/value"
+) >>
+
+Expression
+    : TernaryExpression
+    ;
+
+IdentifierExpression
+    : ident              << ast.NewIdentifierExpression(string($0.(*token.Token).Lit)), nil >>;
+
+PrimaryExpression
+    : integer            << ast.NewConstantErr(value.ParseInt(string($0.(*token.Token).Lit))) >>
+    | float              << ast.NewConstantErr(value.ParseFloat(string($0.(*token.Token).Lit))) >>
+    | string             << ast.NewConstantErr(value.ParseStrLiteral(string($0.(*token.Token).Lit))) >>
+    | char               << ast.NewConstantErr(value.ParseCharLiteral(string($0.(*token.Token).Lit))) >>
+    | IdentifierExpression
+    | "false"            << ast.NewConstant(value.NewBoolean(false)), nil >>
+    | "true"             << ast.NewConstant(value.NewBoolean(true)), nil >>
+    | "(" Expression ")" << ast.NewParenExpression($1.(ast.Node)), nil >>
+    ;
+
+PostfixExpression
+    : PrimaryExpression
+    | PostfixExpression "[" Expression "]"          << ast.NewIndexExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | PostfixExpression "(" ")"                     << ast.NewFunctionCallExpression($0.(ast.Node), ast.NewEmptyExpressionList()), nil >>
+    | PostfixExpression "(" ExpressionList ")"      << ast.NewFunctionCallExpression($0.(ast.Node), $2.(ast.ExpressionList)), nil >>
+    | PostfixExpression "." IdentifierExpression    << ast.NewDotExpression($0.(ast.Node), $2.(ast.IdentifierExpression)), nil >>
+    ;
+
+UnaryExpression
+    : PostfixExpression
+    | "-" Expression    << ast.NewNegateExpression($1.(ast.Node)), nil >>
+    | "!" Expression    << ast.NewLogicalNotExpression($1.(ast.Node)), nil >>
+    | "^" Expression    << ast.NewBitwiseNotExpression($1.(ast.Node)), nil >>
+    ;
+
+BinaryExpression5
+    : UnaryExpression
+    | BinaryExpression5 "*" UnaryExpression     << ast.NewMultiplyExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression5 "/" UnaryExpression     << ast.NewDivideExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression5 "%" UnaryExpression     << ast.NewModuloExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression5 "<<" UnaryExpression    << ast.NewBitwiseLeftShiftExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression5 ">>" UnaryExpression    << ast.NewBitwiseRightShiftExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression5 "&" UnaryExpression     << ast.NewBitwiseAndExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression5 "&^" UnaryExpression    << ast.NewBitwiseClearExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    ;
+
+BinaryExpression4
+    : BinaryExpression5
+    | BinaryExpression4 "+" BinaryExpression5   << ast.NewAddExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression4 "-" BinaryExpression5   << ast.NewSubtractExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression4 "|" BinaryExpression5   << ast.NewBitwiseOrExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression4 "^" BinaryExpression5   << ast.NewBitwiseXorExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    ;
+
+BinaryExpression3
+    : BinaryExpression4
+    | BinaryExpression3 "==" BinaryExpression4  << ast.NewEqualExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression3 "!=" BinaryExpression4  << ast.NewNotEqualExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression3 ">" BinaryExpression4   << ast.NewGreaterThanExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression3 "<" BinaryExpression4   << ast.NewLessThanExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression3 ">=" BinaryExpression4  << ast.NewGreaterThanOrEqualExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    | BinaryExpression3 "<=" BinaryExpression4  << ast.NewLessThanOrEqualExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    ;
+
+BinaryExpression2
+    : BinaryExpression3
+    | BinaryExpression2 "&&" BinaryExpression3  << ast.NewLogicalAndExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    ;
+
+BinaryExpression1
+    : BinaryExpression2
+    | BinaryExpression1 "||" BinaryExpression2  << ast.NewLogicalOrExpression($0.(ast.Node), $2.(ast.Node)), nil >>
+    ;
+
+TernaryExpression
+    : BinaryExpression1
+    | TernaryExpression "?" Expression ":" BinaryExpression1  << ast.NewConditionalExpression($0.(ast.Node), $2.(ast.Node), $4.(ast.Node)), nil >>
+    ;
+
+ExpressionList
+    : Expression                    << ast.NewExpressionList($0.(ast.Node)), nil >>
+    | ExpressionList "," Expression << ast.AppendExpression($0.(ast.ExpressionList), $2.(ast.Node)), nil >>
+    ;
