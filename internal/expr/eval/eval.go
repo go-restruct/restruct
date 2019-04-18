@@ -34,8 +34,6 @@ func evaluateOperands(context Context, left ast.Node, right ast.Node) (value.Val
 // Evaluate evaluates an expression with regards to context.
 func Evaluate(context Context, expr ast.Node) (value.Value, error) {
 	switch t := expr.(type) {
-	case ast.ExpressionList:
-		return nil, errors.New("unexpected expression list")
 	case ast.ParenExpression:
 		return Evaluate(context, t.Node)
 	case ast.IdentifierExpression:

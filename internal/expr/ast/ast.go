@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/go-restruct/restruct/internal/expr/typing"
 	"github.com/go-restruct/restruct/internal/expr/value"
 )
 
 // This asserts that all nodes fulfill the node interface.
 var (
-	_ = Node(ExpressionList{})
 	_ = Node(ParenExpression{})
 	_ = Node(IdentifierExpression{})
 	_ = Node(FunctionCallExpression{})
@@ -47,6 +47,9 @@ type Node interface {
 
 	// ConstantFold returns an equivalent node with context folding performed recursively.
 	ConstantFold() Node
+
+	// Type returns the type that the expression will emit during evaluation.
+	Type(typing.Context) (typing.Type, error)
 }
 
 // ExpressionList represents a list of expressions.
@@ -69,7 +72,7 @@ func AppendExpression(list ExpressionList, node Node) ExpressionList {
 	return ExpressionList{append(list.Nodes, node)}
 }
 
-// Source implements Node
+// Source returns the source code equivalent of the expression list.
 func (e ExpressionList) Source() string {
 	sources := []string{}
 	for _, node := range e.Nodes {
@@ -78,8 +81,8 @@ func (e ExpressionList) Source() string {
 	return strings.Join(sources, ", ")
 }
 
-// ConstantFold implements Node
-func (e ExpressionList) ConstantFold() Node {
+// ConstantFold constant folds each expression in the list.
+func (e ExpressionList) ConstantFold() ExpressionList {
 	nodes := []Node{}
 	for _, node := range e.Nodes {
 		nodes = append(nodes, node.ConstantFold())
@@ -107,6 +110,11 @@ func (e ParenExpression) ConstantFold() Node {
 	return ParenExpression{e.Node.ConstantFold()}
 }
 
+// Type implements Node
+func (e ParenExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Node.Type(context)
+}
+
 // IdentifierExpression represents an identifier.
 type IdentifierExpression struct {
 	Name string
@@ -122,6 +130,11 @@ func (e IdentifierExpression) Source() string { return e.Name }
 
 // ConstantFold implements Node
 func (e IdentifierExpression) ConstantFold() Node { return e }
+
+// Type implements Node
+func (e IdentifierExpression) Type(context typing.Context) (typing.Type, error) {
+	return context.Resolve(e.Name)
+}
 
 // FunctionCallExpression represents a function call expression.
 type FunctionCallExpression struct {
@@ -142,6 +155,15 @@ func (e FunctionCallExpression) Source() string {
 // ConstantFold implements Node
 func (e FunctionCallExpression) ConstantFold() Node { return e }
 
+// Type implements Node
+func (e FunctionCallExpression) Type(context typing.Context) (typing.Type, error) {
+	typ, err := e.Function.Type(context)
+	if err != nil {
+		return nil, err
+	}
+	return typ.Return()
+}
+
 // IndexExpression represents an indexing expression.
 type IndexExpression struct {
 	Operand Node
@@ -161,6 +183,15 @@ func (e IndexExpression) Source() string {
 // ConstantFold implements Node
 func (e IndexExpression) ConstantFold() Node { return e }
 
+// Type implements Node
+func (e IndexExpression) Type(context typing.Context) (typing.Type, error) {
+	typ, err := e.Operand.Type(context)
+	if err != nil {
+		return nil, err
+	}
+	return typ.Elem()
+}
+
 // DotExpression represents a dot descend expression.
 type DotExpression struct {
 	Left  Node
@@ -177,6 +208,15 @@ func (e DotExpression) Source() string { return e.Left.Source() + "." + e.Right.
 
 // ConstantFold implements Node
 func (e DotExpression) ConstantFold() Node { return e }
+
+// Type implements Node
+func (e DotExpression) Type(context typing.Context) (typing.Type, error) {
+	typ, err := e.Left.Type(context)
+	if err != nil {
+		return nil, err
+	}
+	return typ.Field(e.Right.Name)
+}
 
 // NegateExpression represents a unary negation expression.
 type NegateExpression struct {
@@ -203,6 +243,11 @@ func (e NegateExpression) ConstantFold() Node {
 		}
 	}
 	return NegateExpression{v}
+}
+
+// Type implements Node
+func (e NegateExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Operand.Type(context)
 }
 
 // LogicalNotExpression represents a logical not expression.
@@ -232,6 +277,11 @@ func (e LogicalNotExpression) ConstantFold() Node {
 	return NewLogicalNotExpression(v)
 }
 
+// Type implements Node
+func (e LogicalNotExpression) Type(context typing.Context) (typing.Type, error) {
+	return typing.PrimitiveType(typing.Boolean), nil
+}
+
 // BitwiseNotExpression represents a bitwise not expression.
 type BitwiseNotExpression struct {
 	Operand Node
@@ -259,6 +309,11 @@ func (e BitwiseNotExpression) ConstantFold() Node {
 	return NewBitwiseNotExpression(v)
 }
 
+// Type implements Node
+func (e BitwiseNotExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Operand.Type(context)
+}
+
 // MultiplyExpression represents a multiplication expression.
 type MultiplyExpression struct {
 	Left  Node
@@ -279,6 +334,11 @@ func (e MultiplyExpression) Source() string {
 func (e MultiplyExpression) ConstantFold() Node {
 	// TODO: implement constant folding for binary operators
 	return MultiplyExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
+}
+
+// Type implements Node
+func (e MultiplyExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Left.Type(context)
 }
 
 // DivideExpression represents a division expression.
@@ -303,6 +363,11 @@ func (e DivideExpression) ConstantFold() Node {
 	return DivideExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
 }
 
+// Type implements Node
+func (e DivideExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Left.Type(context)
+}
+
 // ModuloExpression represents a modulo expression.
 type ModuloExpression struct {
 	Left  Node
@@ -323,6 +388,11 @@ func (e ModuloExpression) Source() string {
 func (e ModuloExpression) ConstantFold() Node {
 	// TODO: implement constant folding for binary operators
 	return ModuloExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
+}
+
+// Type implements Node
+func (e ModuloExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Left.Type(context)
 }
 
 // AddExpression represents an addition expression.
@@ -347,6 +417,11 @@ func (e AddExpression) ConstantFold() Node {
 	return AddExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
 }
 
+// Type implements Node
+func (e AddExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Left.Type(context)
+}
+
 // SubtractExpression represents a subtraction expression.
 type SubtractExpression struct {
 	Left  Node
@@ -367,6 +442,11 @@ func (e SubtractExpression) ConstantFold() Node {
 // Source implements Node
 func (e SubtractExpression) Source() string {
 	return fmt.Sprintf("%s - %s", e.Left.Source(), e.Right.Source())
+}
+
+// Type implements Node
+func (e SubtractExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Left.Type(context)
 }
 
 // BitwiseLeftShiftExpression represents a bitwise left shift expression.
@@ -391,6 +471,11 @@ func (e BitwiseLeftShiftExpression) ConstantFold() Node {
 	return BitwiseLeftShiftExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
 }
 
+// Type implements Node
+func (e BitwiseLeftShiftExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Left.Type(context)
+}
+
 // BitwiseRightShiftExpression represents a bitwise right shift expression.
 type BitwiseRightShiftExpression struct {
 	Left  Node
@@ -411,6 +496,11 @@ func (e BitwiseRightShiftExpression) Source() string {
 func (e BitwiseRightShiftExpression) ConstantFold() Node {
 	// TODO: implement constant folding for binary operators
 	return BitwiseRightShiftExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
+}
+
+// Type implements Node
+func (e BitwiseRightShiftExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Left.Type(context)
 }
 
 // GreaterThanExpression represents a greater than relational expression.
@@ -435,6 +525,11 @@ func (e GreaterThanExpression) Source() string {
 	return fmt.Sprintf("%s > %s", e.Left.Source(), e.Right.Source())
 }
 
+// Type implements Node
+func (e GreaterThanExpression) Type(context typing.Context) (typing.Type, error) {
+	return typing.PrimitiveType(typing.Boolean), nil
+}
+
 // LessThanExpression represents a less than relational expression.
 type LessThanExpression struct {
 	Left  Node
@@ -455,6 +550,11 @@ func (e LessThanExpression) Source() string {
 func (e LessThanExpression) ConstantFold() Node {
 	// TODO: implement constant folding for binary operators
 	return LessThanExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
+}
+
+// Type implements Node
+func (e LessThanExpression) Type(context typing.Context) (typing.Type, error) {
+	return typing.PrimitiveType(typing.Boolean), nil
 }
 
 // GreaterThanOrEqualExpression represents a greater than or equal relational expression.
@@ -479,6 +579,11 @@ func (e GreaterThanOrEqualExpression) ConstantFold() Node {
 	return GreaterThanOrEqualExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
 }
 
+// Type implements Node
+func (e GreaterThanOrEqualExpression) Type(context typing.Context) (typing.Type, error) {
+	return typing.PrimitiveType(typing.Boolean), nil
+}
+
 // LessThanOrEqualExpression represents a less than or equal relational expression.
 type LessThanOrEqualExpression struct {
 	Left  Node
@@ -499,6 +604,11 @@ func (e LessThanOrEqualExpression) Source() string {
 func (e LessThanOrEqualExpression) ConstantFold() Node {
 	// TODO: implement constant folding for binary operators
 	return LessThanOrEqualExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
+}
+
+// Type implements Node
+func (e LessThanOrEqualExpression) Type(context typing.Context) (typing.Type, error) {
+	return typing.PrimitiveType(typing.Boolean), nil
 }
 
 // EqualExpression represents an equality expression.
@@ -523,6 +633,11 @@ func (e EqualExpression) ConstantFold() Node {
 	return EqualExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
 }
 
+// Type implements Node
+func (e EqualExpression) Type(context typing.Context) (typing.Type, error) {
+	return typing.PrimitiveType(typing.Boolean), nil
+}
+
 // NotEqualExpression represents an inequality expression.
 type NotEqualExpression struct {
 	Left  Node
@@ -543,6 +658,11 @@ func (e NotEqualExpression) Source() string {
 func (e NotEqualExpression) ConstantFold() Node {
 	// TODO: implement constant folding for binary operators
 	return NotEqualExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
+}
+
+// Type implements Node
+func (e NotEqualExpression) Type(context typing.Context) (typing.Type, error) {
+	return typing.PrimitiveType(typing.Boolean), nil
 }
 
 // BitwiseAndExpression represents a bitwise and expression.
@@ -567,6 +687,11 @@ func (e BitwiseAndExpression) ConstantFold() Node {
 	return BitwiseAndExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
 }
 
+// Type implements Node
+func (e BitwiseAndExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Left.Type(context)
+}
+
 // BitwiseClearExpression represents a bitwise clear expression.
 type BitwiseClearExpression struct {
 	Left  Node
@@ -587,6 +712,11 @@ func (e BitwiseClearExpression) Source() string {
 func (e BitwiseClearExpression) ConstantFold() Node {
 	// TODO: implement constant folding for binary operators
 	return BitwiseClearExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
+}
+
+// Type implements Node
+func (e BitwiseClearExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Left.Type(context)
 }
 
 // BitwiseXorExpression represents a bitwise exclusive or expression.
@@ -611,6 +741,11 @@ func (e BitwiseXorExpression) ConstantFold() Node {
 	return BitwiseXorExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
 }
 
+// Type implements Node
+func (e BitwiseXorExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Left.Type(context)
+}
+
 // BitwiseOrExpression represents an inequality expression.
 type BitwiseOrExpression struct {
 	Left  Node
@@ -631,6 +766,11 @@ func (e BitwiseOrExpression) Source() string {
 func (e BitwiseOrExpression) ConstantFold() Node {
 	// TODO: implement constant folding for binary operators
 	return BitwiseOrExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
+}
+
+// Type implements Node
+func (e BitwiseOrExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Left.Type(context)
 }
 
 // LogicalAndExpression represents a logical and expression.
@@ -655,6 +795,11 @@ func (e LogicalAndExpression) ConstantFold() Node {
 	return LogicalAndExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
 }
 
+// Type implements Node
+func (e LogicalAndExpression) Type(context typing.Context) (typing.Type, error) {
+	return typing.PrimitiveType(typing.Boolean), nil
+}
+
 // LogicalOrExpression represents a logical or expression.
 type LogicalOrExpression struct {
 	Left  Node
@@ -675,6 +820,11 @@ func (e LogicalOrExpression) Source() string {
 func (e LogicalOrExpression) ConstantFold() Node {
 	// TODO: implement constant folding for binary operators
 	return LogicalOrExpression{e.Left.ConstantFold(), e.Right.ConstantFold()}
+}
+
+// Type implements Node
+func (e LogicalOrExpression) Type(context typing.Context) (typing.Type, error) {
+	return typing.PrimitiveType(typing.Boolean), nil
 }
 
 // ConditionalExpression represents a conditional branching expression.
@@ -698,6 +848,11 @@ func (e ConditionalExpression) Source() string {
 func (e ConditionalExpression) ConstantFold() Node {
 	// TODO: implement constant folding for binary operators
 	return ConditionalExpression{e.Condition.ConstantFold(), e.Then.ConstantFold(), e.Else.ConstantFold()}
+}
+
+// Type implements Node
+func (e ConditionalExpression) Type(context typing.Context) (typing.Type, error) {
+	return e.Then.Type(context)
 }
 
 // Constant represents a constant.
@@ -726,4 +881,9 @@ func (e Constant) Source() string {
 // ConstantFold implements Node
 func (e Constant) ConstantFold() Node {
 	return e
+}
+
+// Type implements Node
+func (e Constant) Type(context typing.Context) (typing.Type, error) {
+	return e.Value.Type()
 }

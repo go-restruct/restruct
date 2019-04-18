@@ -1,6 +1,10 @@
 package value
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/go-restruct/restruct/internal/expr/typing"
+)
 
 var (
 	_ = Value(Map{})
@@ -27,6 +31,15 @@ func (c Map) String() string {
 
 // Value implements Value
 func (c Map) Value() interface{} { return c.value }
+
+// Type implements Value
+func (c Map) Type() (typing.Type, error) {
+	typ, err := typing.FromReflectType(c.value.Type())
+	if err != nil {
+		return nil, err
+	}
+	return typ, nil
+}
 
 // Index implements Indexer
 func (c Map) Index(index Value) (Value, error) {

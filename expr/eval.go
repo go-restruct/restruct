@@ -13,7 +13,11 @@ func Eval(s interface{}, input string) (interface{}, error) {
 	}
 	expr = expr.ConstantFold()
 
-	context := eval.NewContext(s)
+	context, err := eval.NewContext(s)
+	if err != nil {
+		return nil, err
+	}
+
 	result, err := eval.Evaluate(context, expr)
 	if err != nil {
 		return nil, err

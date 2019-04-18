@@ -2,8 +2,11 @@ package value
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/go-restruct/restruct/internal/expr/typing"
 )
 
 var (
@@ -34,14 +37,21 @@ func ParseStrLiteral(literal string) (expr String, err error) {
 	buf := bytes.Buffer{}
 	r := strings.NewReader(literal)
 
-	ch := readRune(r)
+	ch, _, err := r.ReadRune()
+	if err != nil {
+		return String{}, err
+	} else if ch != '"' {
+		return String{}, errors.New("syntax error: expected '")
+	}
+
 	for {
-		ch = readRune(r)
-		if ch == '"' {
+		ch, err := readStrLitRune(r, '"')
+		if err == errEndOfString {
 			break
-		} else {
-			buf.WriteRune(readStrLitRune(ch, r))
+		} else if err != nil {
+			return String{}, err
 		}
+		buf.WriteRune(ch)
 
 	}
 
@@ -52,6 +62,9 @@ func (c String) String() string { return fmt.Sprintf("%q", c.value) }
 
 // Value implements Value
 func (c String) Value() interface{} { return c.value }
+
+// Type implements Value
+func (c String) Type() (typing.Type, error) { return typing.PrimitiveType(typing.String), nil }
 
 // Index implements Indexer
 func (c String) Index(index Value) (Value, error) {

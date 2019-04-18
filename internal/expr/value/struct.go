@@ -1,6 +1,10 @@
 package value
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/go-restruct/restruct/internal/expr/typing"
+)
 
 var (
 	_ = Value(Struct{})
@@ -16,6 +20,12 @@ type Struct struct {
 // NewStruct creates a new struct value.
 func NewStruct(value interface{}) Struct {
 	rval := reflect.ValueOf(value)
+	for {
+		if rval.Kind() != reflect.Ptr {
+			break
+		}
+		rval = rval.Elem()
+	}
 	if rval.Kind() != reflect.Struct {
 		panic("NewStruct called on non-struct")
 	}
@@ -28,6 +38,15 @@ func (c Struct) String() string {
 
 // Value implements Value
 func (c Struct) Value() interface{} { return c.value }
+
+// Type implements Value
+func (c Struct) Type() (typing.Type, error) {
+	typ, err := typing.FromReflectType(c.value.Type())
+	if err != nil {
+		return nil, err
+	}
+	return typ, nil
+}
 
 // Descend implements Descender
 func (c Struct) Descend(member string) (Value, error) {

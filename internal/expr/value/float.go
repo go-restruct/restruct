@@ -3,6 +3,8 @@ package value
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/go-restruct/restruct/internal/expr/typing"
 )
 
 var (
@@ -33,6 +35,9 @@ func (c Float) String() string { return fmt.Sprintf("%f", c.value) }
 
 // Value implements Value
 func (c Float) Value() interface{} { return c.value }
+
+// Type implements Value
+func (c Float) Type() (typing.Type, error) { return typing.PrimitiveType(typing.Float), nil }
 
 // Equal implements Comparer
 func (c Float) Equal(right Comparer) (Value, error) {

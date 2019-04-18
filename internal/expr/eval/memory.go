@@ -22,16 +22,7 @@ func evaluateExpressionList(context Context, exprs ast.ExpressionList) ([]value.
 }
 
 func evaluateIdentifier(context Context, expr ast.IdentifierExpression) (value.Value, error) {
-	if obj, ok := context.Global[expr.Name]; ok {
-		return value.FromValue(obj)
-	}
-
-	field := context.Self.FieldByName(expr.Name)
-	if field.IsValid() {
-		return value.FromValue(field.Interface())
-	}
-
-	return nil, fmt.Errorf("unknown identifier %q", expr.Name)
+	return context.Resolve(expr.Name)
 }
 
 func evaluateFunctionCall(context Context, expr ast.FunctionCallExpression) (value.Value, error) {

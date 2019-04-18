@@ -1,6 +1,10 @@
 package value
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/go-restruct/restruct/internal/expr/typing"
+)
 
 var (
 	_ = Value(Int{})
@@ -26,6 +30,9 @@ func (c Int) String() string { return strconv.FormatInt(c.value, 10) }
 
 // Value implements Value
 func (c Int) Value() interface{} { return c.value }
+
+// Type implements Value
+func (c Int) Type() (typing.Type, error) { return typing.PrimitiveType(typing.Int), nil }
 
 // Equal implements Comparer
 func (c Int) Equal(right Comparer) (Value, error) {

@@ -3,6 +3,8 @@ package value
 import (
 	"errors"
 	"reflect"
+
+	"github.com/go-restruct/restruct/internal/expr/typing"
 )
 
 var (
@@ -30,6 +32,15 @@ func (c Func) String() string {
 
 // Value implements Value
 func (c Func) Value() interface{} { return c.value }
+
+// Type implements Value
+func (c Func) Type() (typing.Type, error) {
+	typ, err := typing.FromReflectType(c.value.Type())
+	if err != nil {
+		return nil, err
+	}
+	return typ, nil
+}
 
 // Call implements Caller
 func (c Func) Call(args []Value) (Value, error) {

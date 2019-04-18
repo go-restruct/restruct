@@ -1,5 +1,7 @@
 package value
 
+import "github.com/go-restruct/restruct/internal/expr/typing"
+
 var (
 	_ = Value(Boolean{})
 	_ = Comparer(Boolean{})
@@ -25,6 +27,9 @@ func (c Boolean) String() string {
 
 // Value implements Value
 func (c Boolean) Value() interface{} { return c.value }
+
+// Type implements Value
+func (c Boolean) Type() (typing.Type, error) { return typing.PrimitiveType(typing.Boolean), nil }
 
 // Equal implements Comparer
 func (c Boolean) Equal(right Comparer) (Value, error) {

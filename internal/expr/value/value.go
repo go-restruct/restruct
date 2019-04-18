@@ -3,12 +3,33 @@ package value
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/go-restruct/restruct/internal/expr/typing"
 )
+
+// UnexpectedTypeErr is panicked when an unexpected kind enters the type system.
+type UnexpectedTypeErr struct {
+	v reflect.Value
+}
+
+func (err UnexpectedTypeErr) Error() string {
+	return fmt.Sprintf("unexpected kind %s", err.v.Kind())
+}
 
 // Value is the interface for all constant values.
 type Value interface {
 	fmt.Stringer
 	Value() interface{}
+	Type() (typing.Type, error)
+}
+
+// MustFromValue calls FromValue and panics if an error occurs.
+func MustFromValue(v interface{}) Value {
+	val, err := FromValue(v)
+	if err != nil {
+		panic(err)
+	}
+	return val
 }
 
 // FromValue takes an interface value and creates a constant.
@@ -58,6 +79,6 @@ func fromReflectValue(v reflect.Value) (Value, error) {
 	case reflect.Ptr:
 		return fromReflectValue(v.Elem())
 	default:
-		return nil, fmt.Errorf("unexpected type %s", v.Kind())
+		return nil, UnexpectedTypeErr{v}
 	}
 }

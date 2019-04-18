@@ -1,55 +1,71 @@
 package eval
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/go-restruct/restruct/internal/expr/value"
+)
 
 var (
-	builtins = map[string]interface{}{
-		"int": func(v interface{}) int64 {
-			switch t := v.(type) {
-			case int64:
-				return int64(t)
-			case uint64:
-				return int64(t)
-			case float64:
-				return int64(t)
-			default:
-				panic("unexpected type")
-			}
-		},
-		"uint": func(v interface{}) uint64 {
-			switch t := v.(type) {
-			case int64:
-				return uint64(t)
-			case uint64:
-				return uint64(t)
-			case float64:
-				return uint64(t)
-			default:
-				panic("unexpected type")
-			}
-		},
-		"float": func(v interface{}) float64 {
-			switch t := v.(type) {
-			case int64:
-				return float64(t)
-			case uint64:
-				return float64(t)
-			case float64:
-				return float64(t)
-			default:
-				panic("unexpected type")
-			}
-		},
-		"len": func(v interface{}) uint64 {
-			return uint64(reflect.ValueOf(v).Len())
-		},
-		"first": BuiltinFirst,
-		"last":  BuiltinLast,
-		"sum":   BuiltinSum,
-		"usum":  BuiltinUsum,
-		"fsum":  BuiltinFsum,
+	builtins = map[string]value.Value{
+		"int":   value.NewFunc(BuiltinInt),
+		"uint":  value.NewFunc(BuiltinUint),
+		"float": value.NewFunc(BuiltinFloat),
+		"len":   value.NewFunc(BuiltinLen),
+		"first": value.NewFunc(BuiltinFirst),
+		"last":  value.NewFunc(BuiltinLast),
+		"sum":   value.NewFunc(BuiltinSum),
+		"usum":  value.NewFunc(BuiltinUsum),
+		"fsum":  value.NewFunc(BuiltinFsum),
 	}
 )
+
+// BuiltinInt implements the builtin int function
+func BuiltinInt(v interface{}) int64 {
+	switch t := v.(type) {
+	case int64:
+		return int64(t)
+	case uint64:
+		return int64(t)
+	case float64:
+		return int64(t)
+	default:
+		panic("unexpected type")
+	}
+}
+
+// BuiltinUint implements the builtin uint function
+func BuiltinUint(v interface{}) uint64 {
+	switch t := v.(type) {
+	case int64:
+		return uint64(t)
+	case uint64:
+		return uint64(t)
+	case float64:
+		return uint64(t)
+	default:
+		panic("unexpected type")
+	}
+}
+
+// BuiltinFloat implements the builtin float function.
+func BuiltinFloat(v interface{}) float64 {
+	switch t := v.(type) {
+	case int64:
+		return float64(t)
+	case uint64:
+		return float64(t)
+	case float64:
+		return float64(t)
+	default:
+		panic("unexpected type")
+	}
+}
+
+// BuiltinLen implements the builtin len function.
+func BuiltinLen(v interface{}) uint64 {
+	return uint64(reflect.ValueOf(v).Len())
+}
 
 // BuiltinFirst implements the naive first function.
 func BuiltinFirst(v interface{}) interface{} {

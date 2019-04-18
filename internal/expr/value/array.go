@@ -1,6 +1,10 @@
 package value
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/go-restruct/restruct/internal/expr/typing"
+)
 
 var (
 	_ = Value(Array{})
@@ -13,12 +17,12 @@ type Array struct {
 }
 
 // NewArray creates a new array value.
-func NewArray(value interface{}) Struct {
+func NewArray(value interface{}) Array {
 	rval := reflect.ValueOf(value)
 	if rval.Kind() != reflect.Array && rval.Kind() != reflect.Slice {
 		panic("NewArray called on incompatible type")
 	}
-	return Struct{rval}
+	return Array{rval}
 }
 
 func (c Array) String() string {
@@ -27,6 +31,15 @@ func (c Array) String() string {
 
 // Value implements Value
 func (c Array) Value() interface{} { return c.value }
+
+// Type implements Value
+func (c Array) Type() (typing.Type, error) {
+	typ, err := typing.FromReflectType(c.value.Type())
+	if err != nil {
+		return nil, err
+	}
+	return typ, nil
+}
 
 // Index implements Indexer
 func (c Array) Index(index Value) (Value, error) {
