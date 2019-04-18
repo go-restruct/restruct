@@ -11,13 +11,15 @@ import (
 
 func TestUnpack(t *testing.T) {
 	tests := []struct {
-		data  []byte
-		value interface{}
+		data    []byte
+		bitsize int
+		value   interface{}
 	}{
 		{
 			data: []byte{
 				0x12, 0x34, 0x56, 0x78,
 			},
+			bitsize: 32,
 			value: struct {
 				Dd uint32
 			}{
@@ -29,6 +31,7 @@ func TestUnpack(t *testing.T) {
 			data: []byte{
 				0x55, 0x55,
 			},
+			bitsize: 16,
 			value: struct {
 				A uint8 `struct:"uint8:3"`
 				B uint8 `struct:"uint8:2"`
@@ -47,6 +50,7 @@ func TestUnpack(t *testing.T) {
 				0x00, 0x00, 0x00, 0x02,
 				0x03, 0x00, 0x00, 0x00,
 			},
+			bitsize: 96,
 			value: struct {
 				DefaultOrder uint32
 				BigEndian    uint32 `struct:"big"`
@@ -63,6 +67,7 @@ func TestUnpack(t *testing.T) {
 				0x00, 0x00, 0x00, 0x02,
 				0x03, 0x00, 0x00, 0x00,
 			},
+			bitsize: 96,
 			value: struct {
 				DefaultOrder uint32
 				BigSub       struct {
@@ -85,6 +90,7 @@ func TestUnpack(t *testing.T) {
 				0x00, 0x00, 0x00, 0x03,
 				0x00, 0x00, 0x00, 0x04,
 			},
+			bitsize: 160,
 			value: struct {
 				NumStructs int32 `struct:"sizeof=Structs"`
 				Structs    []struct{ V1, V2 uint32 }
@@ -101,6 +107,7 @@ func TestUnpack(t *testing.T) {
 				0x3e, 0x00, 0x00, 0x00,
 				0x3f, 0x80, 0x00, 0x00,
 			},
+			bitsize: 64,
 			value: struct {
 				C64 complex64
 			}{
@@ -149,6 +156,7 @@ func TestUnpack(t *testing.T) {
 				0x81, 0xa3, 0xe3, 0x81,
 				0x9f, 0xef, 0xbc, 0x81,
 			},
+			bitsize: 880,
 			value: struct {
 				NumStructs uint32 `struct:"uint64,sizeof=Structs"`
 				Structs    []struct{ V1, V2 float32 }
@@ -184,6 +192,7 @@ func TestUnpack(t *testing.T) {
 				0x00, 0x00, 0x00, 0x04,
 				0xf0, 0x9f, 0x91, 0x8c,
 			},
+			bitsize: 64,
 			value: struct {
 				StrLen uint32 `struct:"uint32,sizeof=String"`
 				String string
@@ -198,6 +207,7 @@ func TestUnpack(t *testing.T) {
 				0x00, 0x00, 0x00, 0x00,
 				0xf0, 0x9f, 0x91, 0x8c,
 			},
+			bitsize: 96,
 			value: struct {
 				StrLen uint32 `struct:"uint32,sizeof=String"`
 				String string `struct:"skip=4"`
@@ -210,6 +220,7 @@ func TestUnpack(t *testing.T) {
 			data: []byte{
 				0xf0, 0x9f, 0x91, 0x8c,
 			},
+			bitsize: 32,
 			value: struct {
 				String string `struct:"[4]byte"`
 			}{
@@ -220,6 +231,7 @@ func TestUnpack(t *testing.T) {
 			data: []byte{
 				0xf0, 0x9f, 0x91, 0x8c, 0x00, 0x00, 0x00, 0x01,
 			},
+			bitsize: 64,
 			value: struct {
 				String string `struct:"[7]byte"`
 				Value  byte
@@ -235,6 +247,7 @@ func TestUnpack(t *testing.T) {
 				0x00, 0x22, 0x18,
 				0x00, 0x28, 0x12,
 			},
+			bitsize: 88,
 			value: struct {
 				Length int32 `struct:"int16,sizeof=Slice,little,skip=1"`
 				Slice  []struct {
@@ -256,6 +269,7 @@ func TestUnpack(t *testing.T) {
 				0x00, 0x02,
 				0x00, 0x03,
 			},
+			bitsize: 48,
 			value: struct {
 				Ints []uint16 `struct:"[3]uint16"`
 			}{
@@ -267,6 +281,7 @@ func TestUnpack(t *testing.T) {
 				0x00, 0x00, 0x00, 0x01,
 				0x00, 0x00, 0x00, 0x03,
 			},
+			bitsize: 64,
 			value: struct {
 				Size  int `struct:"int32,sizeof=Array"`
 				Array []int32
@@ -280,6 +295,7 @@ func TestUnpack(t *testing.T) {
 				0x00, 0x00, 0x00, 0x01,
 				0x00, 0x00, 0x00, 0x03,
 			},
+			bitsize: 64,
 			value: struct {
 				_     struct{}
 				Size  int `struct:"int32"`
@@ -297,6 +313,7 @@ func TestUnpack(t *testing.T) {
 				0x00, 0x00, 0x00, 0x03,
 				0x00, 0x00, 0x00, 0x04,
 			},
+			bitsize: 96,
 			value: struct {
 				_      struct{}
 				Size   int `struct:"int32"`
@@ -315,6 +332,7 @@ func TestUnpack(t *testing.T) {
 				0xff, 0xff, 0xff, 0xff,
 				0xff, 0xff, 0xff, 0xff,
 			},
+			bitsize: 64,
 			value: struct {
 				A uint64 `struct:"uint64:12"`
 				B uint64 `struct:"uint64:12"`
@@ -357,6 +375,7 @@ func TestUnpack(t *testing.T) {
 				0x00, 0x00, 0x00, 0x00,
 				0x00, 0x00, 0x00, 0x00,
 			},
+			bitsize: 320,
 			value: struct {
 				NonVariant8BitFalse          bool `struct:"bool"`
 				Variant8BitFalse             bool `struct:"bool,variantbool"`
@@ -394,7 +413,8 @@ func TestUnpack(t *testing.T) {
 			},
 		},
 		{
-			data: []byte{0x80},
+			data:    []byte{0x80},
+			bitsize: 1,
 			value: struct {
 				Bit bool `struct:"uint8:1"`
 			}{
@@ -402,7 +422,8 @@ func TestUnpack(t *testing.T) {
 			},
 		},
 		{
-			data: []byte{0x08, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F},
+			data:    []byte{0x08, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F},
+			bitsize: 80,
 			value: struct {
 				Count uint8 `struct:"uint8,sizeof=List"`
 				List  []struct {
@@ -447,6 +468,11 @@ func TestUnpack(t *testing.T) {
 		size, err := SizeOf(v.Interface())
 		assert.Nil(t, err)
 		assert.Equal(t, len(test.data), size)
+
+		// Test bit sizing
+		bits, err := BitSize(v.Interface())
+		assert.Nil(t, err)
+		assert.Equal(t, test.bitsize, bits)
 	}
 }
 
