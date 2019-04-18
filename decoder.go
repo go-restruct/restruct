@@ -25,87 +25,71 @@ type decoder struct {
 	bitCounter uint8
 }
 
-func (d *decoder) readBits(f field, outputLength uint8) []byte {
-	output := make([]byte, outputLength)
+func putBit(buf []byte, bitSize int, bit int, val byte) {
+	bit = bitSize - 1 - bit
+	buf[len(buf)-bit/8-1] |= (val) << (uint(bit) % 8)
+}
 
+func (d *decoder) readBit() byte {
+	value := (d.buf[0] >> uint(7-d.bitCounter)) & 1
+	d.bitCounter++
+	if d.bitCounter >= 8 {
+		d.buf = d.buf[1:]
+		d.bitCounter -= 8
+	}
+	return value
+}
+
+func (d *decoder) readBits(f field, outBuf []byte) {
+	var decodedBits int
+
+	// Determine encoded size in bits.
 	if f.BitSize == 0 {
-		// Having problems with complex64 type ... so we asume we want to read all
-		// f.BitSize = uint8(f.Type.Bits())
-		f.BitSize = 8 * outputLength
+		decodedBits = 8 * len(outBuf)
+	} else {
+		decodedBits = int(f.BitSize)
 	}
 
-	// originPos: Original position of the first bit in the first byte
-	originPos := 8 - d.bitCounter
+	// Crop output buffer to relevant bytes only.
+	outBuf = outBuf[len(outBuf)-(decodedBits+7)/8:]
 
-	// destPos: Destination position ( in the result ) of the first bit in the first byte
-	destPos := f.BitSize % 8
-	if destPos == 0 {
-		destPos = 8
-	}
-
-	// numBytes: number of complete bytes to hold the result
-	numBytes := f.BitSize / 8
-
-	// numBits: number of remaining bits in the first non-complete byte of the result
-	numBits := f.BitSize % 8
-
-	// number of positions we have to shift the bytes to get the result
-	shift := (originPos - destPos) % 8
-
-	outputInitialIdx := outputLength - numBytes
-	if numBits > 0 {
-		outputInitialIdx = outputInitialIdx - 1
-	}
-	o := output[outputInitialIdx:]
-	if originPos < destPos { // shift left
-		for idx := range o {
-			// TODO: Control the number of bytes of d.buf ... we need to read ahead
-			carry := d.buf[idx+1] >> (8 - shift)
-			o[idx] = (d.buf[idx] << shift) | carry
-		}
-	} else { // originPos >= destPos => shift right
-		// carry : is a little bit tricky in this case because of the first case
-		// when idx == 0 and there is no carry at all
-		carry := func(idx int) uint8 {
-			if idx == 0 {
-				return 0x00
-			}
-			return (d.buf[idx-1] << (8 - shift))
-		}
-
-		for idx := range o {
-			o[idx] = (d.buf[idx] >> shift) | carry(idx)
+	if d.bitCounter == 0 && decodedBits%8 == 0 {
+		// Fast path: we are fully byte-aligned.
+		copy(outBuf, d.buf)
+		d.buf = d.buf[len(outBuf):]
+	} else {
+		// Slow path: work bit-by-bit.
+		// TODO: This needs to be optimized in a way that can be easily
+		// understood; the previous optimized version was simply too hard to
+		// reason about.
+		for i := 0; i < decodedBits; i++ {
+			putBit(outBuf, decodedBits, i, d.readBit())
 		}
 	}
-
-	// here the output is calculated ... but the first byte may have some extra bits
-	// therefore we apply a mask to erase those unaddressable bits
-	output[outputInitialIdx] &= ((0x01 << destPos) - 1)
-
-	d.bitCounter += f.BitSize
-	d.buf = d.buf[d.bitCounter/8:]
-	d.bitCounter %= 8
-	return output
 }
 
 func (d *decoder) read8(f field) uint8 {
-	rawdata := d.readBits(f, 1)
-	return uint8(rawdata[0])
+	b := make([]byte, 1)
+	d.readBits(f, b)
+	return uint8(b[0])
 }
 
 func (d *decoder) read16(f field) uint16 {
-	rawdata := d.readBits(f, 2)
-	return d.order.Uint16(rawdata)
+	b := make([]byte, 2)
+	d.readBits(f, b)
+	return d.order.Uint16(b)
 }
 
 func (d *decoder) read32(f field) uint32 {
-	rawdata := d.readBits(f, 4)
-	return d.order.Uint32(rawdata)
+	b := make([]byte, 4)
+	d.readBits(f, b)
+	return d.order.Uint32(b)
 }
 
 func (d *decoder) read64(f field) uint64 {
-	rawdata := d.readBits(f, 8)
-	return d.order.Uint64(rawdata)
+	b := make([]byte, 8)
+	d.readBits(f, b)
+	return d.order.Uint64(b)
 }
 
 func (d *decoder) readS8(f field) int8 { return int8(d.read8(f)) }
@@ -116,18 +100,23 @@ func (d *decoder) readS32(f field) int32 { return int32(d.read32(f)) }
 
 func (d *decoder) readS64(f field) int64 { return int64(d.read64(f)) }
 
-func (d *decoder) readn(count int) []byte {
+func (d *decoder) readBytes(count int) []byte {
 	x := d.buf[0:count]
 	d.buf = d.buf[count:]
 	return x
 }
 
-func (d *decoder) skipn(count int) {
-	d.buf = d.buf[count:]
+func (d *decoder) skipBits(count int) {
+	d.bitCounter += uint8(count % 8)
+	if d.bitCounter > 8 {
+		d.bitCounter -= 8
+		count += 8
+	}
+	d.buf = d.buf[count/8:]
 }
 
 func (d *decoder) skip(f field, v reflect.Value) {
-	d.skipn(f.SizeOf(v))
+	d.skipBits(f.SizeOfBits(v))
 }
 
 func (d *decoder) unpacker(v reflect.Value) (Unpacker, bool) {
@@ -183,7 +172,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 			return
 		}
 	} else {
-		d.skipn(f.SizeOf(v))
+		d.skipBits(f.SizeOfBits(v))
 		return
 	}
 
@@ -197,7 +186,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 	}
 
 	if f.Skip != 0 {
-		d.skipn(f.Skip)
+		d.skipBits(f.Skip * 8)
 	}
 
 	if f.SIndex != -1 {
@@ -249,7 +238,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 		switch f.NativeType.Kind() {
 		case reflect.String:
 			// When using strings, treat as C string.
-			str := string(d.readn(f.SizeOf(v)))
+			str := string(d.readBytes(f.SizeOfBytes(v)))
 			nul := strings.IndexByte(str, 0)
 			if nul != -1 {
 				str = str[0:nul]
@@ -284,11 +273,11 @@ func (d *decoder) read(f field, v reflect.Value) {
 		switch f.NativeType.Kind() {
 		case reflect.String:
 			l := v.Len()
-			v.SetString(string(d.readn(l)))
+			v.SetString(string(d.readBytes(l)))
 		case reflect.Slice, reflect.Array:
 			switch f.NativeType.Elem().Kind() {
 			case reflect.Uint8:
-				v.SetBytes(d.readn(f.SizeOf(v)))
+				v.SetBytes(d.readBytes(f.SizeOfBytes(v)))
 			default:
 				l := v.Len()
 				ef := f.Elem()

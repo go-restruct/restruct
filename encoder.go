@@ -24,134 +24,72 @@ type encoder struct {
 	buf        []byte
 	struc      reflect.Value
 	sfields    []field
-	bitCounter uint8
+	bitCounter int
+}
+
+func getBit(buf []byte, bitSize int, bit int) byte {
+	bit = bitSize - 1 - bit
+	return (buf[len(buf)-bit/8-1] >> (uint(bit) % 8)) & 1
+}
+
+func (e *encoder) writeBit(value byte) {
+	e.buf[0] |= (value & 1) << uint(7-e.bitCounter)
+	e.bitCounter++
+	if e.bitCounter >= 8 {
+		e.buf = e.buf[1:]
+		e.bitCounter -= 8
+	}
 }
 
 func (e *encoder) writeBits(f field, inBuf []byte) {
+	var encodedBits int
 
-	var inputLength = uint8(len(inBuf))
-
+	// Determine encoded size in bits.
 	if f.BitSize == 0 {
-		// Having problems with complex64 type ... so we asume we want to read all
-		//f.BitSize = uint8(f.Type.Bits())
-		f.BitSize = 8 * inputLength
-	}
-	// destPos: Destination position ( in the result ) of the first bit in the first byte
-	var destPos = 8 - e.bitCounter
-
-	// originPos: Original position of the first bit in the first byte
-	var originPos = f.BitSize % 8
-	if originPos == 0 {
-		originPos = 8
-	}
-
-	// numBytes: number of complete bytes to hold the result
-	var numBytes = f.BitSize / 8
-
-	// numBits: number of remaining bits in the first non-complete byte of the result
-	var numBits = f.BitSize % 8
-
-	// number of positions we have to shift the bytes to get the result
-	var shift uint8
-	if originPos > destPos {
-		shift = originPos - destPos
+		encodedBits = 8 * len(inBuf)
 	} else {
-		shift = destPos - originPos
-	}
-	shift = shift % 8
-
-	var inputInitialIdx = inputLength - numBytes
-	if numBits > 0 {
-		inputInitialIdx = inputInitialIdx - 1
+		encodedBits = int(f.BitSize)
 	}
 
-	if originPos < destPos {
-		// shift left
-		carry := func(idx uint8) uint8 {
-			if (idx + 1) < inputLength {
-				return (inBuf[idx+1] >> (8 - shift))
-			}
-			return 0x00
+	// Crop input buffer to relevant bytes only.
+	inBuf = inBuf[len(inBuf)-(encodedBits+7)/8:]
 
-		}
-		mask := func(idx uint8) uint8 {
-			if idx == 0 {
-				return (0x01 << destPos) - 1
-			}
-			return 0xFF
-		}
-		var idx uint8
-		for inIdx := inputInitialIdx; inIdx < inputLength; inIdx++ {
-			e.buf[idx] |= ((inBuf[inIdx] << shift) | carry(inIdx)) & mask(idx)
-			idx++
-		}
-
+	if e.bitCounter == 0 && encodedBits%8 == 0 {
+		// Fast path: we are fully byte-aligned.
+		copy(e.buf, inBuf)
+		e.buf = e.buf[len(inBuf):]
 	} else {
-		// originPos >= destPos => shift right
-		var idx uint8
-		// carry : is a little bit tricky in this case because of the first case
-		// when idx == 0 and there is no carry at all
-		carry := func(idx uint8) uint8 {
-			if idx == 0 {
-				return 0x00
-			}
-			return (inBuf[idx-1] << (8 - shift))
-		}
-		mask := func(idx uint8) uint8 {
-			if idx == 0 {
-				return (0x01 << destPos) - 1
-			}
-			return 0xFF
-		}
-		inIdx := inputInitialIdx
-		for ; inIdx < inputLength; inIdx++ {
-			//note: Should the mask be done BEFORE the OR with carry?
-			e.buf[idx] |= ((inBuf[inIdx] >> shift) | carry(inIdx)) & mask(idx)
-			idx++
-		}
-		if ((e.bitCounter + f.BitSize) % 8) > 0 {
-			e.buf[idx] |= carry(inIdx)
+		// Slow path: work bit-by-bit.
+		// TODO: This needs to be optimized in a way that can be easily
+		// understood; the previous optimized version was simply too hard to
+		// reason about.
+		for i := 0; i < encodedBits; i++ {
+			e.writeBit(getBit(inBuf, encodedBits, i))
 		}
 	}
-
-	e.bitCounter += f.BitSize
-	e.buf = e.buf[e.bitCounter/8:]
-	e.bitCounter %= 8
-	return
 }
 
 func (e *encoder) write8(f field, x uint8) {
-	typeSize := uint8(reflect.TypeOf(x).Size())
-
-	b := make([]byte, typeSize)
+	b := make([]byte, 1)
 	b[0] = x
 	e.writeBits(f, b)
 }
 
 func (e *encoder) write16(f field, x uint16) {
-	typeSize := uint8(reflect.TypeOf(x).Size())
-
-	b := make([]byte, typeSize)
-	e.order.PutUint16(b[0:typeSize], x)
-
+	b := make([]byte, 2)
+	e.order.PutUint16(b, x)
 	e.writeBits(f, b)
 }
 
 func (e *encoder) write32(f field, x uint32) {
-	typeSize := uint8(reflect.TypeOf(x).Size())
-
-	b := make([]byte, typeSize)
-	e.order.PutUint32(b[0:typeSize], x)
-
+	b := make([]byte, 4)
+	e.order.PutUint32(b, x)
 	e.writeBits(f, b)
 }
 
 func (e *encoder) write64(f field, x uint64) {
-	typeSize := uint8(reflect.TypeOf(x).Size())
-
-	b := make([]byte, typeSize)
-	e.order.PutUint64(b[0:typeSize], x)
-
+	b := make([]byte, 8)
+	e.order.PutUint64(b, x)
 	e.writeBits(f, b)
 }
 
@@ -163,12 +101,17 @@ func (e *encoder) writeS32(f field, x int32) { e.write32(f, uint32(x)) }
 
 func (e *encoder) writeS64(f field, x int64) { e.write64(f, uint64(x)) }
 
-func (e *encoder) skipn(count int) {
-	e.buf = e.buf[count:]
+func (e *encoder) skipBits(count int) {
+	e.bitCounter += count % 8
+	if e.bitCounter > 8 {
+		e.bitCounter -= 8
+		count += 8
+	}
+	e.buf = e.buf[count/8:]
 }
 
 func (e *encoder) skip(f field, v reflect.Value) {
-	e.skipn(f.SizeOf(v))
+	e.skipBits(f.SizeOfBits(v))
 }
 
 func (e *encoder) packer(v reflect.Value) (Packer, bool) {
@@ -236,7 +179,7 @@ func (e *encoder) write(f field, v reflect.Value) {
 			return
 		}
 	} else {
-		e.skipn(f.SizeOf(v))
+		e.skipBits(f.SizeOfBits(v))
 		return
 	}
 
@@ -250,7 +193,7 @@ func (e *encoder) write(f field, v reflect.Value) {
 	}
 
 	if f.Skip != 0 {
-		e.skipn(f.Skip)
+		e.skipBits(f.Skip * 8)
 	}
 
 	// If this is a sizeof field, pull the current slice length into it.

@@ -99,7 +99,7 @@ func Unpack(data []byte, order binary.ByteOrder, v interface{}) (err error) {
 }
 
 /*
-SizeOf returns the serialized size of the structure passed, in memory.
+SizeOf returns the binary encoded size of the given value, in bytes.
 */
 func SizeOf(v interface{}) (size int, err error) {
 	defer func() {
@@ -109,7 +109,21 @@ func SizeOf(v interface{}) (size int, err error) {
 	}()
 
 	f, val := fieldFromIntf(v)
-	return f.SizeOf(val), nil
+	return f.SizeOfBytes(val), nil
+}
+
+/*
+BitSize returns the binary encoded size of the given value, in bits.
+*/
+func BitSize(v interface{}) (size int, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(error)
+		}
+	}()
+
+	f, val := fieldFromIntf(v)
+	return f.SizeOfBits(val), nil
 }
 
 /*
@@ -130,7 +144,7 @@ func Pack(order binary.ByteOrder, v interface{}) (data []byte, err error) {
 	}()
 
 	f, val := fieldFromIntf(v)
-	data = make([]byte, f.SizeOf(val))
+	data = make([]byte, f.SizeOfBytes(val))
 
 	e := encoder{buf: data, order: order}
 	e.write(f, val)

@@ -401,6 +401,33 @@ func TestUnpack(t *testing.T) {
 				Bit: true,
 			},
 		},
+		{
+			data: []byte{0x08, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F},
+			value: struct {
+				Count uint8 `struct:"uint8,sizeof=List"`
+				List  []struct {
+					A bool  `struct:"uint8:1,variantbool"`
+					B uint8 `struct:"uint8:4"`
+					C uint8 `struct:"uint8:4"`
+				}
+			}{
+				Count: 8,
+				List: []struct {
+					A bool  `struct:"uint8:1,variantbool"`
+					B uint8 `struct:"uint8:4"`
+					C uint8 `struct:"uint8:4"`
+				}{
+					{A: false, B: 1, C: 14},
+					{A: false, B: 3, C: 12},
+					{A: false, B: 7, C: 8},
+					{A: false, B: 15, C: 0},
+					{A: true, B: 14, C: 1},
+					{A: true, B: 12, C: 3},
+					{A: true, B: 8, C: 7},
+					{A: true, B: 0, C: 15},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {

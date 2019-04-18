@@ -205,30 +205,30 @@ func TestSizeOf(t *testing.T) {
 		input interface{}
 		size  int
 	}{
-		{int8(0), 1},
-		{int16(0), 2},
-		{int32(0), 4},
-		{int64(0), 8},
-		{uint8(0), 1},
-		{uint16(0), 2},
-		{uint32(0), 4},
-		{uint64(0), 8},
-		{float32(0), 4},
-		{float64(0), 8},
-		{complex64(0), 8},
-		{complex128(0), 16},
+		{int8(0), 8},
+		{int16(0), 16},
+		{int32(0), 32},
+		{int64(0), 64},
+		{uint8(0), 8},
+		{uint16(0), 16},
+		{uint32(0), 32},
+		{uint64(0), 64},
+		{float32(0), 32},
+		{float64(0), 64},
+		{complex64(0), 64},
+		{complex128(0), 128},
 		{[0]int8{}, 0},
-		{[1]int8{1}, 1},
-		{[]int8{1, 2}, 2},
-		{[]int32{1, 2}, 8},
-		{[2][3]int8{}, 6},
+		{[1]int8{1}, 8},
+		{[]int8{1, 2}, 16},
+		{[]int32{1, 2}, 64},
+		{[2][3]int8{}, 48},
 		{struct{}{}, 0},
-		{struct{ A int8 }{}, 1},
+		{struct{ A int8 }{}, 8},
 		{struct{ A []int8 }{[]int8{}}, 0},
 		{struct{ A [0]int8 }{[0]int8{}}, 0},
-		{struct{ A []int8 }{[]int8{1}}, 1},
-		{struct{ A [1]int8 }{[1]int8{1}}, 1},
-		{TestStruct{}, 2130},
+		{struct{ A []int8 }{[]int8{1}}, 8},
+		{struct{ A [1]int8 }{[1]int8{1}}, 8},
+		{TestStruct{}, 17040},
 		{interface{}(struct{}{}), 0},
 		{struct{ Test interface{} }{}, 0},
 
@@ -240,28 +240,38 @@ func TestSizeOf(t *testing.T) {
 		{struct{ a [1]int8 }{[1]int8{1}}, 0},
 
 		// Trivial unnamed fields test
-		{struct{ _ [1]int8 }{}, 1},
+		{struct{ _ [1]int8 }{}, 8},
 		{struct {
 			_ [1]int8 `struct:"skip=4"`
-		}{}, 5},
+		}{}, 40},
 
 		// Non-trivial unnamed fields test
 		{struct{ _ []interface{} }{}, 0},
 		{struct{ _ [1]interface{} }{}, 0},
 		{struct {
 			_ [1]interface{} `struct:"skip=4"`
-		}{}, 4},
+		}{}, 32},
 		{struct {
 			_ [4]struct {
 				_ [4]struct{} `struct:"skip=4"`
 			} `struct:"skip=4"`
-		}{}, 20},
-		{struct{ T string }{"yeehaw"}, 6},
+		}{}, 160},
+		{struct{ T string }{"yeehaw"}, 48},
+
+		// Byte-misaligned structures
+		{[10]struct {
+			_ int8 `struct:"uint8:1"`
+		}{}, 10},
+		{[4]struct {
+			_ bool `struct:"uint8:1,variantbool"`
+			_ int8 `struct:"uint8:4"`
+			_ int8 `struct:"uint8:4"`
+		}{}, 36},
 	}
 
 	for _, test := range tests {
 		field := fieldFromType(reflect.TypeOf(test.input))
-		assert.Equal(t, test.size, field.SizeOf(reflect.ValueOf(test.input)),
+		assert.Equal(t, test.size, field.SizeOfBits(reflect.ValueOf(test.input)),
 			"bad size for input: %#v", test.input)
 	}
 }
@@ -276,8 +286,8 @@ func init() {
 }
 
 func TestSizeOfFields(t *testing.T) {
-	assert.Equal(t, simpleFields.SizeOf(reflect.ValueOf(TestElem{})), 9)
-	assert.Equal(t, complexFields.SizeOf(reflect.ValueOf(TestStruct{})), 2130)
+	assert.Equal(t, simpleFields.SizeOfBits(reflect.ValueOf(TestElem{})), 72)
+	assert.Equal(t, complexFields.SizeOfBits(reflect.ValueOf(TestStruct{})), 17040)
 }
 
 func BenchmarkFieldsFromStruct(b *testing.B) {
@@ -288,12 +298,12 @@ func BenchmarkFieldsFromStruct(b *testing.B) {
 
 func BenchmarkSizeOfSimple(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		simpleFields.SizeOf(reflect.ValueOf(TestElem{}))
+		simpleFields.SizeOfBits(reflect.ValueOf(TestElem{}))
 	}
 }
 
 func BenchmarkSizeOfComplex(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		complexFields.SizeOf(reflect.ValueOf(TestStruct{}))
+		complexFields.SizeOfBits(reflect.ValueOf(TestStruct{}))
 	}
 }
