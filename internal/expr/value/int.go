@@ -32,7 +32,9 @@ func (c Int) String() string { return strconv.FormatInt(c.value, 10) }
 func (c Int) Value() interface{} { return c.value }
 
 // Type implements Value
-func (c Int) Type() (typing.Type, error) { return typing.PrimitiveType(typing.Int), nil }
+func (c Int) Type() (typing.Type, error) {
+	return typing.PrimitiveType(typing.Int, typing.TypeInfo{}), nil
+}
 
 // Equal implements Comparer
 func (c Int) Equal(right Comparer) (Value, error) {

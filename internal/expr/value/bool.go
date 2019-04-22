@@ -29,7 +29,9 @@ func (c Boolean) String() string {
 func (c Boolean) Value() interface{} { return c.value }
 
 // Type implements Value
-func (c Boolean) Type() (typing.Type, error) { return typing.PrimitiveType(typing.Boolean), nil }
+func (c Boolean) Type() (typing.Type, error) {
+	return typing.PrimitiveType(typing.Boolean, typing.TypeInfo{}), nil
+}
 
 // Equal implements Comparer
 func (c Boolean) Equal(right Comparer) (Value, error) {

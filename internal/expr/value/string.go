@@ -64,7 +64,9 @@ func (c String) String() string { return fmt.Sprintf("%q", c.value) }
 func (c String) Value() interface{} { return c.value }
 
 // Type implements Value
-func (c String) Type() (typing.Type, error) { return typing.PrimitiveType(typing.String), nil }
+func (c String) Type() (typing.Type, error) {
+	return typing.PrimitiveType(typing.String, typing.TypeInfo{}), nil
+}
 
 // Index implements Indexer
 func (c String) Index(index Value) (Value, error) {

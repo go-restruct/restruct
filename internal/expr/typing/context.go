@@ -12,5 +12,5 @@ func (context Context) Resolve(ident string) (Type, error) {
 		return typ, nil
 	}
 
-	return context.Self.Field(ident)
+	return context.Self.FieldByName(ident)
 }

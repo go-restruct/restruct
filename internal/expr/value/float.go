@@ -37,7 +37,9 @@ func (c Float) String() string { return fmt.Sprintf("%f", c.value) }
 func (c Float) Value() interface{} { return c.value }
 
 // Type implements Value
-func (c Float) Type() (typing.Type, error) { return typing.PrimitiveType(typing.Float), nil }
+func (c Float) Type() (typing.Type, error) {
+	return typing.PrimitiveType(typing.Float, typing.TypeInfo{}), nil
+}
 
 // Equal implements Comparer
 func (c Float) Equal(right Comparer) (Value, error) {

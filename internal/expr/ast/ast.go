@@ -215,7 +215,7 @@ func (e DotExpression) Type(context typing.Context) (typing.Type, error) {
 	if err != nil {
 		return nil, err
 	}
-	return typ.Field(e.Right.Name)
+	return typ.FieldByName(e.Right.Name)
 }
 
 // NegateExpression represents a unary negation expression.
@@ -279,7 +279,7 @@ func (e LogicalNotExpression) ConstantFold() Node {
 
 // Type implements Node
 func (e LogicalNotExpression) Type(context typing.Context) (typing.Type, error) {
-	return typing.PrimitiveType(typing.Boolean), nil
+	return typing.PrimitiveType(typing.Boolean, typing.TypeInfo{}), nil
 }
 
 // BitwiseNotExpression represents a bitwise not expression.
@@ -527,7 +527,7 @@ func (e GreaterThanExpression) Source() string {
 
 // Type implements Node
 func (e GreaterThanExpression) Type(context typing.Context) (typing.Type, error) {
-	return typing.PrimitiveType(typing.Boolean), nil
+	return typing.PrimitiveType(typing.Boolean, typing.TypeInfo{}), nil
 }
 
 // LessThanExpression represents a less than relational expression.
@@ -554,7 +554,7 @@ func (e LessThanExpression) ConstantFold() Node {
 
 // Type implements Node
 func (e LessThanExpression) Type(context typing.Context) (typing.Type, error) {
-	return typing.PrimitiveType(typing.Boolean), nil
+	return typing.PrimitiveType(typing.Boolean, typing.TypeInfo{}), nil
 }
 
 // GreaterThanOrEqualExpression represents a greater than or equal relational expression.
@@ -581,7 +581,7 @@ func (e GreaterThanOrEqualExpression) ConstantFold() Node {
 
 // Type implements Node
 func (e GreaterThanOrEqualExpression) Type(context typing.Context) (typing.Type, error) {
-	return typing.PrimitiveType(typing.Boolean), nil
+	return typing.PrimitiveType(typing.Boolean, typing.TypeInfo{}), nil
 }
 
 // LessThanOrEqualExpression represents a less than or equal relational expression.
@@ -608,7 +608,7 @@ func (e LessThanOrEqualExpression) ConstantFold() Node {
 
 // Type implements Node
 func (e LessThanOrEqualExpression) Type(context typing.Context) (typing.Type, error) {
-	return typing.PrimitiveType(typing.Boolean), nil
+	return typing.PrimitiveType(typing.Boolean, typing.TypeInfo{}), nil
 }
 
 // EqualExpression represents an equality expression.
@@ -635,7 +635,7 @@ func (e EqualExpression) ConstantFold() Node {
 
 // Type implements Node
 func (e EqualExpression) Type(context typing.Context) (typing.Type, error) {
-	return typing.PrimitiveType(typing.Boolean), nil
+	return typing.PrimitiveType(typing.Boolean, typing.TypeInfo{}), nil
 }
 
 // NotEqualExpression represents an inequality expression.
@@ -662,7 +662,7 @@ func (e NotEqualExpression) ConstantFold() Node {
 
 // Type implements Node
 func (e NotEqualExpression) Type(context typing.Context) (typing.Type, error) {
-	return typing.PrimitiveType(typing.Boolean), nil
+	return typing.PrimitiveType(typing.Boolean, typing.TypeInfo{}), nil
 }
 
 // BitwiseAndExpression represents a bitwise and expression.
@@ -797,7 +797,7 @@ func (e LogicalAndExpression) ConstantFold() Node {
 
 // Type implements Node
 func (e LogicalAndExpression) Type(context typing.Context) (typing.Type, error) {
-	return typing.PrimitiveType(typing.Boolean), nil
+	return typing.PrimitiveType(typing.Boolean, typing.TypeInfo{}), nil
 }
 
 // LogicalOrExpression represents a logical or expression.
@@ -824,7 +824,7 @@ func (e LogicalOrExpression) ConstantFold() Node {
 
 // Type implements Node
 func (e LogicalOrExpression) Type(context typing.Context) (typing.Type, error) {
-	return typing.PrimitiveType(typing.Boolean), nil
+	return typing.PrimitiveType(typing.Boolean, typing.TypeInfo{}), nil
 }
 
 // ConditionalExpression represents a conditional branching expression.
