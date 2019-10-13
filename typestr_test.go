@@ -9,12 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type ParseTypeTestCase struct {
-	input  string
-	typ    reflect.Type
-	errstr string
-}
-
 func TestParseType(t *testing.T) {
 	RegisterArrayType([5]*float32{})
 

@@ -541,21 +541,6 @@ func assignable(from Type, to Type) bool {
 	return false
 }
 
-func defaultprimitive(t Type) Type {
-	switch t.Kind() {
-	case UntypedBool:
-		return NewPrimitiveType(Bool)
-	case UntypedInt:
-		return NewPrimitiveType(Int)
-	case UntypedFloat:
-		return NewPrimitiveType(Float64)
-	case UntypedNil:
-		panic(ErrUntypedNil)
-	default:
-		return t
-	}
-}
-
 // TypeOf returns the type of a runtime value.
 func TypeOf(i interface{}) Type {
 	if pkg, ok := i.(Package); ok {

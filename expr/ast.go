@@ -114,6 +114,10 @@ type nilnode struct {
 	pos int
 }
 
+func newnilnode(t token) nilnode {
+	return nilnode{t.pos}
+}
+
 func (nilnode) source() string {
 	return "nil"
 }
