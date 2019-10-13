@@ -87,12 +87,15 @@ Flags are comma-separated keys. The following are available:
 func Unpack(data []byte, order binary.ByteOrder, v interface{}) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = r.(error)
+			var ok bool
+			if err, ok = r.(error); !ok {
+				panic(err)
+			}
 		}
 	}()
 
 	f, val := fieldFromIntf(v)
-	d := decoder{order: order, buf: data}
+	d := decoder{order: order, buf: data, allowExpr: expressionsEnabled}
 	d.read(f, val)
 
 	return
@@ -109,7 +112,7 @@ func SizeOf(v interface{}) (size int, err error) {
 	}()
 
 	f, val := fieldFromIntf(v)
-	return f.SizeOfBytes(val), nil
+	return f.SizeOfBytes(val, reflect.Value{}), nil
 }
 
 /*
@@ -123,7 +126,7 @@ func BitSize(v interface{}) (size int, err error) {
 	}()
 
 	f, val := fieldFromIntf(v)
-	return f.SizeOfBits(val), nil
+	return f.SizeOfBits(val, reflect.Value{}), nil
 }
 
 /*
@@ -144,9 +147,9 @@ func Pack(order binary.ByteOrder, v interface{}) (data []byte, err error) {
 	}()
 
 	f, val := fieldFromIntf(v)
-	data = make([]byte, f.SizeOfBytes(val))
+	data = make([]byte, f.SizeOfBytes(val, reflect.Value{}))
 
-	e := encoder{buf: data, order: order}
+	e := encoder{buf: data, order: order, allowExpr: expressionsEnabled}
 	e.write(f, val)
 
 	return

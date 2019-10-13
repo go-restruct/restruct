@@ -523,7 +523,7 @@ func TestUnpackBrokenSizeOf(t *testing.T) {
 
 	err = Unpack(data, binary.BigEndian, &s2)
 	assert.NotNil(t, err)
-	assert.Equal(t, "unsupported size target [2]int16", err.Error())
+	assert.Equal(t, "sizeof specified on fixed size type", err.Error())
 }
 
 func TestUnpackBrokenArray(t *testing.T) {
@@ -659,4 +659,105 @@ func TestCustomPackingNonPointer(t *testing.T) {
 	err = Unpack(b, binary.LittleEndian, d)
 	assert.Nil(t, err)
 	assert.Equal(t, 32, *d.A)
+}
+
+func TestSizeExpr(t *testing.T) {
+	EnableExprBeta()
+
+	type sizeStruct struct {
+		Len  byte
+		Data []byte `struct:"size=Len*2"`
+	}
+
+	expectStruct := sizeStruct{
+		2, []byte{0, 1, 2, 3},
+	}
+	expectData := []byte{2, 0, 1, 2, 3}
+
+	var actualStruct sizeStruct
+	err := Unpack(expectData, binary.LittleEndian, &actualStruct)
+	assert.Nil(t, err)
+	assert.Equal(t, expectStruct, actualStruct)
+
+	actualData, err := Pack(binary.LittleEndian, &expectStruct)
+	assert.Nil(t, err)
+	assert.Equal(t, expectData, actualData)
+}
+
+func TestBitsExpr(t *testing.T) {
+	EnableExprBeta()
+
+	type dynamicBits struct {
+		BitLen byte
+		Int    uint64 `struct:"bits=BitLen"`
+	}
+
+	expectStruct := dynamicBits{5, 0x1f}
+	expectData := []byte{5, 0xf8}
+
+	var actualStruct dynamicBits
+	err := Unpack(expectData, binary.BigEndian, &actualStruct)
+	assert.Nil(t, err)
+	assert.Equal(t, expectStruct, actualStruct)
+
+	actualData, err := Pack(binary.BigEndian, &expectStruct)
+	assert.Nil(t, err)
+	assert.Equal(t, expectData, actualData)
+}
+
+func TestIfExpr(t *testing.T) {
+	EnableExprBeta()
+
+	type ifExpr struct {
+		HasByte bool
+		Byte    byte `struct:"if=HasByte"`
+	}
+
+	{
+		expectStruct := ifExpr{false, 0}
+		expectData := []byte{0}
+
+		var actualStruct ifExpr
+		err := Unpack(expectData, binary.BigEndian, &actualStruct)
+		assert.Nil(t, err)
+		assert.Equal(t, expectStruct, actualStruct)
+
+		actualData, err := Pack(binary.BigEndian, &expectStruct)
+		assert.Nil(t, err)
+		assert.Equal(t, expectData, actualData)
+	}
+
+	{
+		expectStruct := ifExpr{true, 255}
+		expectData := []byte{1, 255}
+
+		var actualStruct ifExpr
+		err := Unpack(expectData, binary.BigEndian, &actualStruct)
+		assert.Nil(t, err)
+		assert.Equal(t, expectStruct, actualStruct)
+
+		actualData, err := Pack(binary.BigEndian, &expectStruct)
+		assert.Nil(t, err)
+		assert.Equal(t, expectData, actualData)
+	}
+}
+
+func TestInOutExpr(t *testing.T) {
+	EnableExprBeta()
+
+	type inoutStruct struct {
+		Value byte `struct:"in=Value/2,out=Value*2"`
+	}
+
+	expectStruct := inoutStruct{20}
+	expectData := []byte{40}
+
+	var actualStruct inoutStruct
+	err := Unpack(expectData, binary.LittleEndian, &actualStruct)
+	assert.Nil(t, err)
+	assert.Equal(t, expectStruct, actualStruct)
+
+	actualData, err := Pack(binary.LittleEndian, &expectStruct)
+	assert.Nil(t, err)
+	assert.Equal(t, expectData, actualData)
 }
