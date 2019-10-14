@@ -98,8 +98,6 @@ func evalbinary(resolver Resolver, node binaryexpr) Value {
 			in = append(in, evalnode(resolver, n))
 		}
 		return a.Call(in)
-	case binarysubscript:
-		panic(fmt.Errorf("would do subscript %s[%s] if it was implemented", node.a.source(), node.b.source()))
 	case binarygroup:
 		return evalnode(resolver, node.b)
 	}
@@ -144,6 +142,8 @@ func evalbinary(resolver Resolver, node binaryexpr) Value {
 		return a.And(b)
 	case binaryandnot:
 		return a.AndNot(b)
+	case binarysubscript:
+		return a.Index(b)
 	default:
 		panic("invalid binary expression")
 	}

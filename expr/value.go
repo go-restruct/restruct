@@ -66,6 +66,7 @@ type Value interface {
 	Rsh(rhs Value) Value
 	And(rhs Value) Value
 	AndNot(rhs Value) Value
+	Index(rhs Value) Value
 	Call(in []Value) Value
 }
 
@@ -841,6 +842,19 @@ func (v val) AndNot(rhs Value) Value {
 	}
 }
 
+func (v val) Index(rhs Value) Value {
+	switch t := v.t.(type) {
+	case ArrayType:
+		return val{v.v.Index(rhs.Value().Convert(reflect.TypeOf(int(0))).Interface().(int)), t.Elem()}
+	case SliceType:
+		return val{v.v.Index(rhs.Value().Convert(reflect.TypeOf(int(0))).Interface().(int)), t.Elem()}
+	case MapType:
+		return val{v.v.MapIndex(promote(rhs, t.Key()).Value()), t.Value()}
+	default:
+		panic(InvalidOpError{Op: "[]", V: v})
+	}
+}
+
 func (v val) Call(in []Value) Value {
 	ft, ok := v.t.(FuncType)
 	if !ok {
@@ -857,7 +871,7 @@ func (v val) Call(in []Value) Value {
 	if len(out) != 1 {
 		panic("only functions returning 1 value are supported")
 	}
-	return ValueOf(out[0].Interface())
+	return val{out[0], ft.Out(0)}
 }
 
 // ValueOf returns a Value for the given runtime value.
