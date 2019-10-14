@@ -6,8 +6,6 @@ import (
 	"math"
 	"reflect"
 	"strings"
-
-	"github.com/go-restruct/restruct/expr"
 )
 
 // Unpacker is a type capable of unpacking a binary representation of itself
@@ -22,7 +20,6 @@ type Unpacker interface {
 type decoder struct {
 	structstack
 	order      binary.ByteOrder
-	buf        []byte
 	sfields    []field
 	bitCounter uint8
 	bitSize    int
@@ -119,7 +116,7 @@ func (d *decoder) skipBits(count int) {
 }
 
 func (d *decoder) skip(f field, v reflect.Value) {
-	d.skipBits(f.SizeOfBits(v, d.ancestor(0)))
+	d.skipBits(d.fieldbits(f, v))
 }
 
 func (d *decoder) unpacker(v reflect.Value) (Unpacker, bool) {
@@ -187,11 +184,11 @@ func (d *decoder) read(f field, v reflect.Value) {
 			return
 		}
 	} else {
-		d.skipBits(f.SizeOfBits(v, struc))
+		d.skipBits(d.fieldbits(f, v))
 		return
 	}
 
-	if !evalIf(&f, d.resolver) {
+	if !d.evalIf(f) {
 		return
 	}
 
@@ -207,8 +204,8 @@ func (d *decoder) read(f field, v reflect.Value) {
 		d.skipBits(f.Skip * 8)
 	}
 
-	d.bitSize = evalBits(&f, d.resolver)
-	alen := evalSize(&f, d.resolver)
+	d.bitSize = d.evalBits(f)
+	alen := d.evalSize(f)
 
 	if alen == 0 && f.SIndex != -1 {
 		sv := struc.Field(f.SIndex)
@@ -243,7 +240,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 		switch f.NativeType.Kind() {
 		case reflect.String:
 			// When using strings, treat as C string.
-			str := string(d.readBytes(f.SizeOfBytes(v, struc)))
+			str := string(d.readBytes(d.fieldbytes(f, v)))
 			nul := strings.IndexByte(str, 0)
 			if nul != -1 {
 				str = str[0:nul]
@@ -286,7 +283,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 			v.Set(reflect.MakeSlice(f.BinaryType, alen, alen))
 			switch f.NativeType.Elem().Kind() {
 			case reflect.Uint8:
-				v.SetBytes(d.readBytes(f.SizeOfBytes(v, struc)))
+				v.SetBytes(d.readBytes(d.fieldbytes(f, v)))
 			default:
 				ef := f.Elem()
 				for i := 0; i < alen; i++ {
@@ -333,10 +330,6 @@ func (d *decoder) read(f field, v reflect.Value) {
 	}
 
 	if f.InExpr != nil {
-		in, err := expr.EvalProgram(d.resolver(), f.InExpr)
-		if err != nil {
-			panic(fmt.Errorf("error processing in expr for %s: %v", f.Name, err))
-		}
-		v.Set(reflect.ValueOf(in))
+		v.Set(reflect.ValueOf(d.evalExpr(f.InExpr)))
 	}
 }

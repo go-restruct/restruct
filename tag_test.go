@@ -111,6 +111,7 @@ func TestParseTag(t *testing.T) {
 		{"bits=4", tagOptions{BitsExpr: "4"}, ""},
 		{"in=42", tagOptions{InExpr: "42"}, ""},
 		{"out=42", tagOptions{OutExpr: "42"}, ""},
+		{"while=true", tagOptions{WhileExpr: "true"}, ""},
 
 		// Root
 		{"root", tagOptions{RootFlag: true}, ""},

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"math"
 	"reflect"
-
-	"github.com/go-restruct/restruct/expr"
 )
 
 // Packer is a type capable of packing a native value into a binary
@@ -24,7 +22,6 @@ type Packer interface {
 type encoder struct {
 	structstack
 	order      binary.ByteOrder
-	buf        []byte
 	sfields    []field
 	bitCounter int
 	bitSize    int
@@ -114,7 +111,7 @@ func (e *encoder) skipBits(count int) {
 }
 
 func (e *encoder) skip(f field, v reflect.Value) {
-	e.skipBits(f.SizeOfBits(v, e.ancestor(0)))
+	e.skipBits(e.fieldbits(f, v))
 }
 
 func (e *encoder) packer(v reflect.Value) (Packer, bool) {
@@ -194,11 +191,11 @@ func (e *encoder) write(f field, v reflect.Value) {
 			return
 		}
 	} else {
-		e.skipBits(f.SizeOfBits(v, struc))
+		e.skipBits(e.fieldbits(f, v))
 		return
 	}
 
-	if !evalIf(&f, e.resolver) {
+	if !e.evalIf(f) {
 		return
 	}
 
@@ -214,7 +211,7 @@ func (e *encoder) write(f field, v reflect.Value) {
 		e.skipBits(f.Skip * 8)
 	}
 
-	e.bitSize = evalBits(&f, e.resolver)
+	e.bitSize = e.evalBits(f)
 
 	// If this is a sizeof field, pull the current slice length into it.
 	if f.TIndex != -1 {
@@ -232,11 +229,7 @@ func (e *encoder) write(f field, v reflect.Value) {
 
 	ov := v
 	if f.OutExpr != nil {
-		out, err := expr.EvalProgram(e.resolver(), f.OutExpr)
-		if err != nil {
-			panic(fmt.Errorf("error processing out expr for %s: %v", f.Name, err))
-		}
-		ov = reflect.ValueOf(out)
+		ov = reflect.ValueOf(e.evalExpr(f.OutExpr))
 	}
 
 	switch f.BinaryType.Kind() {
@@ -252,7 +245,7 @@ func (e *encoder) write(f field, v reflect.Value) {
 		switch f.NativeType.Kind() {
 		case reflect.Slice, reflect.String:
 			if f.SizeExpr != nil {
-				if l := evalSize(&f, e.resolver); l != ov.Len() {
+				if l := e.evalSize(f); l != ov.Len() {
 					panic(fmt.Errorf("length does not match size expression (%d != %d)", ov.Len(), l))
 				}
 			}

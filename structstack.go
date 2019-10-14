@@ -7,24 +7,181 @@ import (
 )
 
 type structstack struct {
+	buf       []byte
 	stack     []reflect.Value
-	exprenv   expr.Resolver
 	allowexpr bool
 }
 
-func (s *structstack) resolver() expr.Resolver {
-	if s.exprenv == nil {
-		if !s.allowexpr {
-			panic("call restruct.EnableExprBeta() to eanble expressions beta")
+func (s *structstack) Resolve(ident string) expr.Value {
+	switch ident {
+	case "_eof":
+		return expr.ValueOf(len(s.buf) == 0)
+	default:
+		if t := stdLibResolver.Resolve(ident); t != nil {
+			return t
 		}
-		s.exprenv = makeResolver(s.ancestor(0))
+		if len(s.stack) > 0 {
+			if sv := s.stack[len(s.stack)-1].FieldByName(ident); sv.IsValid() {
+				return expr.ValueOf(sv.Interface())
+			}
+		}
+		return nil
 	}
-	return s.exprenv
+}
+
+func (s *structstack) evalBits(f field) int {
+	bits := 0
+	if f.BitSize != 0 {
+		bits = int(f.BitSize)
+	}
+	if f.BitsExpr != nil {
+		bits = reflect.ValueOf(s.evalExpr(f.BitsExpr)).Convert(reflect.TypeOf(int(0))).Interface().(int)
+	}
+	return bits
+}
+
+func (s *structstack) evalSize(f field) int {
+	size := 0
+	if f.SizeExpr != nil {
+		size = reflect.ValueOf(s.evalExpr(f.SizeExpr)).Convert(reflect.TypeOf(int(0))).Interface().(int)
+	}
+	return size
+}
+
+func (s *structstack) evalIf(f field) bool {
+	if f.IfExpr == nil {
+		return true
+	}
+	if b, ok := s.evalExpr(f.IfExpr).(bool); ok {
+		return b
+	}
+	panic("expected bool value for if expr")
+}
+
+// fieldbits determines the encoded size of a field in bits.
+func (s *structstack) fieldbits(f field, val reflect.Value) (size int) {
+	skipBits := f.Skip * 8
+
+	if f.Flags&(RootFlag|ParentFlag) != 0 {
+		return 0
+	}
+
+	if f.Name != "_" {
+		if s, ok := f.bitSizeUsingInterface(val); ok {
+			return s
+		}
+	} else {
+		// Non-trivial, unnamed fields do not make sense. You can't set a field
+		// with no name, so the elements can't possibly differ.
+		// N.B.: Though skip will still work, use struct{} instead for skip.
+		if !isTypeTrivial(val.Type()) {
+			return skipBits
+		}
+	}
+
+	if !s.evalIf(f) {
+		return 0
+	}
+
+	if b := s.evalBits(f); b != 0 {
+		return b
+	}
+
+	alen := 1
+	switch f.BinaryType.Kind() {
+	case reflect.Int8, reflect.Uint8, reflect.Bool:
+		return 8 + skipBits
+	case reflect.Int16, reflect.Uint16:
+		return 16 + skipBits
+	case reflect.Int, reflect.Int32,
+		reflect.Uint, reflect.Uint32,
+		reflect.Float32:
+		return 32 + skipBits
+	case reflect.Int64, reflect.Uint64,
+		reflect.Float64, reflect.Complex64:
+		return 64 + skipBits
+	case reflect.Complex128:
+		return 128 + skipBits
+	case reflect.Slice, reflect.String:
+		switch f.NativeType.Kind() {
+		case reflect.Slice, reflect.String, reflect.Array, reflect.Ptr:
+			alen = val.Len()
+		default:
+			return 0
+		}
+		fallthrough
+	case reflect.Array, reflect.Ptr:
+		size += skipBits
+
+		// If array type, get length from type.
+		if f.BinaryType.Kind() == reflect.Array {
+			alen = f.BinaryType.Len()
+		}
+
+		// Optimization: if the array/slice is empty, bail now.
+		if alen == 0 {
+			return size
+		}
+
+		switch f.NativeType.Kind() {
+		case reflect.Ptr:
+			return s.fieldbits(f.Elem(), val.Elem())
+		case reflect.Slice, reflect.String, reflect.Array:
+			// Optimization: if the type is trivial, we only need to check the
+			// first element.
+			elem := f.Elem()
+			if f.Trivial {
+				size += s.fieldbits(elem, reflect.Zero(f.BinaryType.Elem())) * alen
+			} else {
+				for i := 0; i < alen; i++ {
+					size += s.fieldbits(elem, val.Index(i))
+				}
+			}
+		}
+		return size
+	case reflect.Struct:
+		size += skipBits
+		s.push(val)
+		for _, field := range cachedFieldsFromStruct(f.BinaryType) {
+			if field.BitSize != 0 {
+				size += int(field.BitSize)
+			} else {
+				size += s.fieldbits(field, val.Field(field.Index))
+			}
+		}
+		s.pop(val)
+		return size
+	default:
+		return 0
+	}
+}
+
+// fieldbytes returns the effective size in bytes, for the few cases where
+// byte sizes are needed.
+func (s *structstack) fieldbytes(f field, val reflect.Value) (size int) {
+	return (s.fieldbits(f, val) + 7) / 8
+}
+
+func (s *structstack) fieldsbits(fields fields, val reflect.Value) (size int) {
+	for _, field := range fields {
+		size += s.fieldbits(field, val.Field(field.Index))
+	}
+	return
+}
+
+func (s *structstack) evalExpr(program *expr.Program) interface{} {
+	if !s.allowexpr {
+		panic("call restruct.EnableExprBeta() to eanble expressions beta")
+	}
+	v, err := expr.EvalProgram(s, program)
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
 
 func (s *structstack) push(v reflect.Value) {
 	s.stack = append(s.stack, v)
-	s.exprenv = nil
 }
 
 func (s *structstack) pop(v reflect.Value) {
@@ -33,7 +190,6 @@ func (s *structstack) pop(v reflect.Value) {
 	if p != v {
 		panic("struct stack misaligned")
 	}
-	s.exprenv = nil
 }
 
 func (s *structstack) setancestor(f field, v reflect.Value, ancestor reflect.Value) {

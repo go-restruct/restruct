@@ -22,11 +22,12 @@ type tagOptions struct {
 	RootFlag         bool
 	ParentFlag       bool
 
-	IfExpr   string
-	SizeExpr string
-	BitsExpr string
-	InExpr   string
-	OutExpr  string
+	IfExpr    string
+	SizeExpr  string
+	BitsExpr  string
+	InExpr    string
+	OutExpr   string
+	WhileExpr string
 }
 
 // mustParseTag calls ParseTag but panics if there is an error, to help make
@@ -95,6 +96,8 @@ func parseTag(tag string) (tagOptions, error) {
 				result.InExpr = part[3:]
 			} else if strings.HasPrefix(part, "out=") {
 				result.OutExpr = part[4:]
+			} else if strings.HasPrefix(part, "while=") {
+				result.WhileExpr = part[6:]
 			} else {
 				// Here is where the type is parsed from the tag
 				dataType := strings.Split(part, ":")

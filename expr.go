@@ -1,13 +1,12 @@
 package restruct
 
 import (
-	"reflect"
-
 	"github.com/go-restruct/restruct/expr"
 )
 
 var (
 	expressionsEnabled = false
+	stdLibResolver     = expr.NewMapResolver(exprStdLib)
 )
 
 // EnableExprBeta enables you to use restruct expr while it is still in beta.
@@ -15,11 +14,4 @@ var (
 // ways at any time.
 func EnableExprBeta() {
 	expressionsEnabled = true
-}
-
-func makeResolver(s reflect.Value) expr.Resolver {
-	env := expr.NewMetaResolver()
-	env.AddResolver(expr.NewStructResolver(s))
-	env.AddResolver(expr.NewMapResolver(exprStdLib))
-	return env
 }

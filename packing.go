@@ -95,8 +95,8 @@ func Unpack(data []byte, order binary.ByteOrder, v interface{}) (err error) {
 	}()
 
 	f, val := fieldFromIntf(v)
-	ss := structstack{allowexpr: expressionsEnabled}
-	d := decoder{structstack: ss, order: order, buf: data}
+	ss := structstack{allowexpr: expressionsEnabled, buf: data}
+	d := decoder{structstack: ss, order: order}
 	d.read(f, val)
 
 	return
@@ -112,8 +112,9 @@ func SizeOf(v interface{}) (size int, err error) {
 		}
 	}()
 
+	ss := structstack{allowexpr: expressionsEnabled}
 	f, val := fieldFromIntf(v)
-	return f.SizeOfBytes(val, reflect.Value{}), nil
+	return ss.fieldbytes(f, val), nil
 }
 
 /*
@@ -126,8 +127,9 @@ func BitSize(v interface{}) (size int, err error) {
 		}
 	}()
 
+	ss := structstack{allowexpr: expressionsEnabled}
 	f, val := fieldFromIntf(v)
-	return f.SizeOfBits(val, reflect.Value{}), nil
+	return ss.fieldbits(f, val), nil
 }
 
 /*
@@ -147,11 +149,13 @@ func Pack(order binary.ByteOrder, v interface{}) (data []byte, err error) {
 		}
 	}()
 
-	f, val := fieldFromIntf(v)
-	data = make([]byte, f.SizeOfBytes(val, reflect.Value{}))
+	ss := structstack{allowexpr: expressionsEnabled, buf: []byte{}}
 
-	ss := structstack{allowexpr: expressionsEnabled}
-	e := encoder{structstack: ss, buf: data, order: order}
+	f, val := fieldFromIntf(v)
+	data = make([]byte, ss.fieldbytes(f, val))
+
+	ss.buf = data
+	e := encoder{structstack: ss, order: order}
 	e.write(f, val)
 
 	return
