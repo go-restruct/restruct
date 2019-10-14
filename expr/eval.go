@@ -89,12 +89,15 @@ func evalbinary(resolver Resolver, node binaryexpr) Value {
 	switch node.op {
 	case binarymember:
 		if id, ok := node.b.(identnode); ok {
-			a.Dot(id.ident)
+			return a.Dot(id.ident)
 		}
-		panic("expected ident node")
+		panic(fmt.Errorf("expected ident node, got %T", node.b))
 	case binarycall:
-		in := flattengroup(node.b)
-		panic(fmt.Errorf("would do function call %s(%v) if it was implemented", node.a.source(), in))
+		in := []Value{}
+		for _, n := range flattengroup(node.b) {
+			in = append(in, evalnode(resolver, n))
+		}
+		return a.Call(in)
 	case binarysubscript:
 		panic(fmt.Errorf("would do subscript %s[%s] if it was implemented", node.a.source(), node.b.source()))
 	case binarygroup:

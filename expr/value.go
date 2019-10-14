@@ -66,6 +66,7 @@ type Value interface {
 	Rsh(rhs Value) Value
 	And(rhs Value) Value
 	AndNot(rhs Value) Value
+	Call(in []Value) Value
 }
 
 type val struct {
@@ -74,6 +75,10 @@ type val struct {
 }
 
 func promote(from Value, to Type) Value {
+	if from.Type() == to {
+		return from
+	}
+
 	ftype := from.Type()
 	switch ftype.Kind() {
 	case UntypedBool:
@@ -834,6 +839,25 @@ func (v val) AndNot(rhs Value) Value {
 	default:
 		panic(InvalidOpError{Op: "&^", V: l})
 	}
+}
+
+func (v val) Call(in []Value) Value {
+	ft, ok := v.t.(FuncType)
+	if !ok {
+		panic("Call invoked on non-function")
+	}
+	if len(in) != ft.NumIn() {
+		panic("invalid number of arguments to function")
+	}
+	inconv := []reflect.Value{}
+	for i, n := range in {
+		inconv = append(inconv, promote(n, ft.In(i)).Value())
+	}
+	out := v.v.Call(inconv)
+	if len(out) != 1 {
+		panic("only functions returning 1 value are supported")
+	}
+	return ValueOf(out[0].Interface())
 }
 
 // ValueOf returns a Value for the given runtime value.
