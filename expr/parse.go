@@ -105,16 +105,16 @@ func (p *parser) parseexpr(depth int) node {
 		if depth >= 8 {
 			break
 		}
+		if n != nil && p.accept(periodtoken) {
+			binary(binarymember, 8)
+			continue
+		}
 		if n != nil && p.accept(leftparentoken) {
 			binary(binarycall, 1)
 			continue
 		}
 		if n != nil && p.accept(leftbrackettoken) {
 			binary(binarysubscript, 1)
-			continue
-		}
-		if n != nil && p.accept(periodtoken) {
-			binary(binarymember, 1)
 			continue
 		}
 		if n == nil && p.accept(addtoken) {
