@@ -19,6 +19,12 @@ type tagOptions struct {
 	BitSize          uint8
 	VariantBoolFlag  bool
 	InvertedBoolFlag bool
+
+	IfExpr   string
+	SizeExpr string
+	BitsExpr string
+	InExpr   string
+	OutExpr  string
 }
 
 // mustParseTag calls ParseTag but panics if there is an error, to help make
@@ -73,6 +79,16 @@ func parseTag(tag string) (tagOptions, error) {
 				if err != nil {
 					return tagOptions{}, errors.New("bad skip amount")
 				}
+			} else if strings.HasPrefix(part, "if=") {
+				result.IfExpr = part[3:]
+			} else if strings.HasPrefix(part, "size=") {
+				result.SizeExpr = part[5:]
+			} else if strings.HasPrefix(part, "bits=") {
+				result.BitsExpr = part[5:]
+			} else if strings.HasPrefix(part, "in=") {
+				result.InExpr = part[3:]
+			} else if strings.HasPrefix(part, "out=") {
+				result.OutExpr = part[4:]
 			} else {
 				// Here is where the type is parsed from the tag
 				dataType := strings.Split(part, ":")
@@ -93,7 +109,9 @@ func parseTag(tag string) (tagOptions, error) {
 							return tagOptions{}, errors.New("bad value on bitfield")
 						}
 						result.BitSize = uint8(bsize)
-
+						if !validBitType(typ) {
+							panic("bits specified on non-bitwise type")
+						}
 						// Caution!! reflect.Type.Bits() can panic if called on non int,float or complex
 						if result.BitSize >= uint8(typ.Bits()) {
 							return tagOptions{}, errors.New("too high value on bitfield")

@@ -105,6 +105,13 @@ func TestParseTag(t *testing.T) {
 		{"skip=4", tagOptions{Skip: 4}, ""},
 		{"skip=字", tagOptions{}, "bad skip amount"},
 
+		// Expressions
+		{"if=true", tagOptions{IfExpr: "true"}, ""},
+		{"size=4", tagOptions{SizeExpr: "4"}, ""},
+		{"bits=4", tagOptions{BitsExpr: "4"}, ""},
+		{"in=42", tagOptions{InExpr: "42"}, ""},
+		{"out=42", tagOptions{OutExpr: "42"}, ""},
+
 		// Composite
 		{"uint16,little,sizeof=test,skip=5",
 			tagOptions{

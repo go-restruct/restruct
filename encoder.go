@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+
+	"github.com/go-restruct/restruct/expr"
 )
 
 // Packer is a type capable of packing a native value into a binary
@@ -25,6 +27,19 @@ type encoder struct {
 	struc      reflect.Value
 	sfields    []field
 	bitCounter int
+	bitSize    int
+	allowExpr  bool
+	exprEnv    expr.Resolver
+}
+
+func (e *encoder) resolver() expr.Resolver {
+	if e.exprEnv == nil {
+		if !e.allowExpr {
+			panic("call restruct.EnableExprBeta() to eanble expressions beta")
+		}
+		e.exprEnv = makeResolver(e.struc)
+	}
+	return e.exprEnv
 }
 
 func getBit(buf []byte, bitSize int, bit int) byte {
@@ -45,10 +60,10 @@ func (e *encoder) writeBits(f field, inBuf []byte) {
 	var encodedBits int
 
 	// Determine encoded size in bits.
-	if f.BitSize == 0 {
+	if e.bitSize == 0 {
 		encodedBits = 8 * len(inBuf)
 	} else {
-		encodedBits = int(f.BitSize)
+		encodedBits = int(e.bitSize)
 	}
 
 	// Crop input buffer to relevant bytes only.
@@ -111,7 +126,7 @@ func (e *encoder) skipBits(count int) {
 }
 
 func (e *encoder) skip(f field, v reflect.Value) {
-	e.skipBits(f.SizeOfBits(v))
+	e.skipBits(f.SizeOfBits(v, e.struc))
 }
 
 func (e *encoder) packer(v reflect.Value) (Packer, bool) {
@@ -179,7 +194,11 @@ func (e *encoder) write(f field, v reflect.Value) {
 			return
 		}
 	} else {
-		e.skipBits(f.SizeOfBits(v))
+		e.skipBits(f.SizeOfBits(v, e.struc))
+		return
+	}
+
+	if !evalIf(&f, e.resolver) {
 		return
 	}
 
@@ -196,6 +215,8 @@ func (e *encoder) write(f field, v reflect.Value) {
 		e.skipBits(f.Skip * 8)
 	}
 
+	e.bitSize = evalBits(&f, e.resolver)
+
 	// If this is a sizeof field, pull the current slice length into it.
 	if f.TIndex != -1 {
 		sv := struc.Field(f.TIndex)
@@ -210,18 +231,34 @@ func (e *encoder) write(f field, v reflect.Value) {
 		}
 	}
 
+	ov := v
+	if f.OutExpr != nil {
+		out, err := expr.EvalProgram(e.resolver(), f.OutExpr)
+		if err != nil {
+			panic(fmt.Errorf("error processing out expr for %s: %v", f.Name, err))
+		}
+		ov = reflect.ValueOf(out)
+	}
+
 	switch f.BinaryType.Kind() {
 	case reflect.Array, reflect.Slice, reflect.String:
 		switch f.NativeType.Kind() {
-		case reflect.Array, reflect.Slice, reflect.String:
+		case reflect.Slice, reflect.String:
+			if f.SizeExpr != nil {
+				if l := evalSize(&f, e.resolver); l != ov.Len() {
+					panic(fmt.Errorf("length does not match size expression (%d != %d)", ov.Len(), l))
+				}
+			}
+			fallthrough
+		case reflect.Array:
 			ef := f.Elem()
-			len := v.Len()
+			len := ov.Len()
 			cap := len
 			if f.BinaryType.Kind() == reflect.Array {
 				cap = f.BinaryType.Len()
 			}
 			for i := 0; i < len; i++ {
-				e.write(ef, v.Index(i))
+				e.write(ef, ov.Index(i))
 			}
 			for i := len; i < cap; i++ {
 				e.write(ef, reflect.New(f.BinaryType.Elem()).Elem())
@@ -231,12 +268,12 @@ func (e *encoder) write(f field, v reflect.Value) {
 		}
 
 	case reflect.Struct:
-		e.struc = v
+		e.struc = ov
 		e.sfields = cachedFieldsFromStruct(f.BinaryType)
 		l := len(e.sfields)
 		for i := 0; i < l; i++ {
 			sf := e.sfields[i]
-			sv := v.Field(sf.Index)
+			sv := ov.Field(sf.Index)
 			if sv.CanSet() {
 				e.write(sf, sv)
 			} else {
@@ -247,34 +284,34 @@ func (e *encoder) write(f field, v reflect.Value) {
 		e.struc = struc
 
 	case reflect.Int8:
-		e.writeS8(f, int8(e.intFromField(f, v)))
+		e.writeS8(f, int8(e.intFromField(f, ov)))
 	case reflect.Int16:
-		e.writeS16(f, int16(e.intFromField(f, v)))
+		e.writeS16(f, int16(e.intFromField(f, ov)))
 	case reflect.Int32:
-		e.writeS32(f, int32(e.intFromField(f, v)))
+		e.writeS32(f, int32(e.intFromField(f, ov)))
 	case reflect.Int64:
-		e.writeS64(f, int64(e.intFromField(f, v)))
+		e.writeS64(f, int64(e.intFromField(f, ov)))
 
 	case reflect.Uint8, reflect.Bool:
-		e.write8(f, uint8(e.uintFromField(f, v)))
+		e.write8(f, uint8(e.uintFromField(f, ov)))
 	case reflect.Uint16:
-		e.write16(f, uint16(e.uintFromField(f, v)))
+		e.write16(f, uint16(e.uintFromField(f, ov)))
 	case reflect.Uint32:
-		e.write32(f, uint32(e.uintFromField(f, v)))
+		e.write32(f, uint32(e.uintFromField(f, ov)))
 	case reflect.Uint64:
-		e.write64(f, uint64(e.uintFromField(f, v)))
+		e.write64(f, uint64(e.uintFromField(f, ov)))
 
 	case reflect.Float32:
-		e.write32(f, math.Float32bits(float32(v.Float())))
+		e.write32(f, math.Float32bits(float32(ov.Float())))
 	case reflect.Float64:
-		e.write64(f, math.Float64bits(float64(v.Float())))
+		e.write64(f, math.Float64bits(float64(ov.Float())))
 
 	case reflect.Complex64:
-		x := v.Complex()
+		x := ov.Complex()
 		e.write32(f, math.Float32bits(float32(real(x))))
 		e.write32(f, math.Float32bits(float32(imag(x))))
 	case reflect.Complex128:
-		x := v.Complex()
+		x := ov.Complex()
 		e.write64(f, math.Float64bits(float64(real(x))))
 		e.write64(f, math.Float64bits(float64(imag(x))))
 	}

@@ -6,6 +6,8 @@ import (
 	"math"
 	"reflect"
 	"strings"
+
+	"github.com/go-restruct/restruct/expr"
 )
 
 // Unpacker is a type capable of unpacking a binary representation of itself
@@ -23,6 +25,19 @@ type decoder struct {
 	struc      reflect.Value
 	sfields    []field
 	bitCounter uint8
+	bitSize    int
+	allowExpr  bool
+	exprEnv    expr.Resolver
+}
+
+func (d *decoder) resolver() expr.Resolver {
+	if d.exprEnv == nil {
+		if !d.allowExpr {
+			panic("call restruct.EnableExprBeta() to eanble expressions beta")
+		}
+		d.exprEnv = makeResolver(d.struc)
+	}
+	return d.exprEnv
 }
 
 func putBit(buf []byte, bitSize int, bit int, val byte) {
@@ -44,10 +59,10 @@ func (d *decoder) readBits(f field, outBuf []byte) {
 	var decodedBits int
 
 	// Determine encoded size in bits.
-	if f.BitSize == 0 {
+	if d.bitSize == 0 {
 		decodedBits = 8 * len(outBuf)
 	} else {
-		decodedBits = int(f.BitSize)
+		decodedBits = int(d.bitSize)
 	}
 
 	// Crop output buffer to relevant bytes only.
@@ -116,7 +131,7 @@ func (d *decoder) skipBits(count int) {
 }
 
 func (d *decoder) skip(f field, v reflect.Value) {
-	d.skipBits(f.SizeOfBits(v))
+	d.skipBits(f.SizeOfBits(v, d.struc))
 }
 
 func (d *decoder) unpacker(v reflect.Value) (Unpacker, bool) {
@@ -172,7 +187,11 @@ func (d *decoder) read(f field, v reflect.Value) {
 			return
 		}
 	} else {
-		d.skipBits(f.SizeOfBits(v))
+		d.skipBits(f.SizeOfBits(v, d.struc))
+		return
+	}
+
+	if !evalIf(&f, d.resolver) {
 		return
 	}
 
@@ -189,39 +208,26 @@ func (d *decoder) read(f field, v reflect.Value) {
 		d.skipBits(f.Skip * 8)
 	}
 
-	if f.SIndex != -1 {
+	d.bitSize = evalBits(&f, d.resolver)
+	alen := evalSize(&f, d.resolver)
+
+	if alen == 0 && f.SIndex != -1 {
 		sv := struc.Field(f.SIndex)
 		l := len(sfields)
 		for i := 0; i < l; i++ {
 			if sfields[i].Index != f.SIndex {
 				continue
 			}
-
 			sf := sfields[i]
-			sl := 0
-
 			// Must use different codepath for signed/unsigned.
 			switch sf.BinaryType.Kind() {
 			case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				sl = int(sv.Int())
+				alen = int(sv.Int())
 			case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				sl = int(sv.Uint())
+				alen = int(sv.Uint())
 			default:
 				panic(fmt.Errorf("unsupported size type %s: %s", sf.BinaryType.String(), sf.Name))
 			}
-
-			// Strings are immutable, but we make a blank one so that we can
-			// figure out the size later. It might be better to do something
-			// more hackish, like writing the length into the string...
-			switch f.NativeType.Kind() {
-			case reflect.Slice:
-				v.Set(reflect.MakeSlice(f.BinaryType, sl, sl))
-			case reflect.String:
-				v.SetString(string(make([]byte, sl)))
-			default:
-				panic(fmt.Errorf("unsupported size target %s", f.NativeType.String()))
-			}
-
 			break
 		}
 	}
@@ -238,7 +244,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 		switch f.NativeType.Kind() {
 		case reflect.String:
 			// When using strings, treat as C string.
-			str := string(d.readBytes(f.SizeOfBytes(v)))
+			str := string(d.readBytes(f.SizeOfBytes(v, d.struc)))
 			nul := strings.IndexByte(str, 0)
 			if nul != -1 {
 				str = str[0:nul]
@@ -272,16 +278,15 @@ func (d *decoder) read(f field, v reflect.Value) {
 	case reflect.Slice, reflect.String:
 		switch f.NativeType.Kind() {
 		case reflect.String:
-			l := v.Len()
-			v.SetString(string(d.readBytes(l)))
+			v.SetString(string(d.readBytes(alen)))
 		case reflect.Slice, reflect.Array:
+			v.Set(reflect.MakeSlice(f.BinaryType, alen, alen))
 			switch f.NativeType.Elem().Kind() {
 			case reflect.Uint8:
-				v.SetBytes(d.readBytes(f.SizeOfBytes(v)))
+				v.SetBytes(d.readBytes(f.SizeOfBytes(v, d.struc)))
 			default:
-				l := v.Len()
 				ef := f.Elem()
-				for i := 0; i < l; i++ {
+				for i := 0; i < alen; i++ {
 					d.read(ef, v.Index(i))
 				}
 			}
@@ -322,5 +327,13 @@ func (d *decoder) read(f field, v reflect.Value) {
 			math.Float64frombits(d.read64(f)),
 			math.Float64frombits(d.read64(f)),
 		))
+	}
+
+	if f.InExpr != nil {
+		in, err := expr.EvalProgram(d.resolver(), f.InExpr)
+		if err != nil {
+			panic(fmt.Errorf("error processing in expr for %s: %v", f.Name, err))
+		}
+		v.Set(reflect.ValueOf(in))
 	}
 }
