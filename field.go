@@ -254,6 +254,10 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 		if opts.OutExpr != "" {
 			outExpr = expr.ParseString(opts.OutExpr)
 		}
+		var whileExpr *expr.Program
+		if opts.WhileExpr != "" {
+			whileExpr = expr.ParseString(opts.WhileExpr)
+		}
 
 		// Flags
 		flags := FieldFlags(0)
@@ -281,6 +285,7 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 			BitsExpr:   bitsExpr,
 			InExpr:     inExpr,
 			OutExpr:    outExpr,
+			WhileExpr:  whileExpr,
 		})
 	}
 

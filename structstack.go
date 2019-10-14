@@ -58,6 +58,13 @@ func (s *structstack) evalIf(f field) bool {
 	panic("expected bool value for if expr")
 }
 
+func (s *structstack) evalWhile(f field) bool {
+	if b, ok := s.evalExpr(f.WhileExpr).(bool); ok {
+		return b
+	}
+	panic("expected bool value for while expr")
+}
+
 // fieldbits determines the encoded size of a field in bits.
 func (s *structstack) fieldbits(f field, val reflect.Value) (size int) {
 	skipBits := f.Skip * 8

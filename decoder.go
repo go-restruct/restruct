@@ -276,11 +276,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 		d.read(f.Elem(), v.Elem())
 
 	case reflect.Slice, reflect.String:
-		switch f.NativeType.Kind() {
-		case reflect.String:
-			v.SetString(string(d.readBytes(alen)))
-		case reflect.Slice, reflect.Array:
-			v.Set(reflect.MakeSlice(f.BinaryType, alen, alen))
+		fixed := func() {
 			switch f.NativeType.Elem().Kind() {
 			case reflect.Uint8:
 				v.SetBytes(d.readBytes(d.fieldbytes(f, v)))
@@ -289,6 +285,36 @@ func (d *decoder) read(f field, v reflect.Value) {
 				for i := 0; i < alen; i++ {
 					d.read(ef, v.Index(i))
 				}
+			}
+		}
+		switch f.NativeType.Kind() {
+		case reflect.String:
+			v.SetString(string(d.readBytes(alen)))
+		case reflect.Array:
+			if f.WhileExpr != nil {
+				i := 0
+				ef := f.Elem()
+				for d.evalWhile(f) {
+					d.read(ef, v.Index(i))
+					i++
+				}
+			} else {
+				fixed()
+			}
+		case reflect.Slice:
+			if f.WhileExpr != nil {
+				switch f.NativeType.Kind() {
+				case reflect.Slice:
+					ef := f.Elem()
+					for d.evalWhile(f) {
+						nv := reflect.New(ef.NativeType).Elem()
+						d.read(ef, nv)
+						v.Set(reflect.Append(v, nv))
+					}
+				}
+			} else {
+				v.Set(reflect.MakeSlice(f.BinaryType, alen, alen))
+				fixed()
 			}
 		default:
 			panic(fmt.Errorf("invalid array cast type: %s", f.NativeType.String()))
