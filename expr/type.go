@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sync"
 )
 
 var (
@@ -115,7 +116,7 @@ func NewPrimitiveType(k Kind) Type {
 	if k < Bool || k > Float64 {
 		panic("not a primitive kind")
 	}
-	return PrimitiveType{kind: k}
+	return &PrimitiveType{kind: k}
 }
 
 // String implements Type.
@@ -169,7 +170,7 @@ func NewLiteralType(k Kind) Type {
 	if k < UntypedBool || k > UntypedNil {
 		panic("not a primitive kind")
 	}
-	return littype{kind: k}
+	return &littype{kind: k}
 }
 
 // String implements Type.
@@ -196,8 +197,8 @@ type PackageType struct {
 }
 
 // NewPackageType returns a new package with the given symbols.
-func NewPackageType(symbols map[string]Type) PackageType {
-	return PackageType{symbols}
+func NewPackageType(symbols map[string]Type) *PackageType {
+	return &PackageType{symbols}
 }
 
 // String implements Type.
@@ -225,8 +226,8 @@ type ArrayType struct {
 }
 
 // NewArrayType returns a new array type.
-func NewArrayType(count int, elem Type) Type {
-	return ArrayType{count: count, elem: elem}
+func NewArrayType(count int, elem Type) *ArrayType {
+	return &ArrayType{count: count, elem: elem}
 }
 
 // String implements Type.
@@ -255,8 +256,8 @@ type SliceType struct {
 }
 
 // NewSliceType returns a new array type.
-func NewSliceType(elem Type) Type {
-	return SliceType{elem: elem}
+func NewSliceType(elem Type) *SliceType {
+	return &SliceType{elem: elem}
 }
 
 // String implements Type.
@@ -317,12 +318,12 @@ type StructType struct {
 }
 
 // NewStructType returns a new struct type.
-func NewStructType(fields []Field) Type {
+func NewStructType(fields []Field) *StructType {
 	fieldMap := map[string]Field{}
 	for _, field := range fields {
 		fieldMap[field.Name] = field
 	}
-	return StructType{fields: fields, fieldMap: fieldMap}
+	return &StructType{fields: fields, fieldMap: fieldMap}
 }
 
 // String implements Type.
@@ -357,8 +358,8 @@ type PtrType struct {
 }
 
 // NewPtrType returns a new pointer type.
-func NewPtrType(elem Type) Type {
-	return PtrType{elem: elem}
+func NewPtrType(elem Type) *PtrType {
+	return &PtrType{elem: elem}
 }
 
 // String implements Type.
@@ -384,8 +385,8 @@ type FuncType struct {
 }
 
 // NewFuncType returns a new function type.
-func NewFuncType(in []Type, out []Type, variadic bool) Type {
-	return FuncType{in: in, out: out, variadic: variadic}
+func NewFuncType(in []Type, out []Type, variadic bool) *FuncType {
+	return &FuncType{in: in, out: out, variadic: variadic}
 }
 
 // String implements Type.
@@ -423,16 +424,22 @@ func (t FuncType) Out(i int) Type {
 	return t.out[i]
 }
 
+// TypeEqual returns true if the two types are equal.
+func TypeEqual(a, b Type) bool {
+	// TODO: this could be a bit more precise.
+	return reflect.DeepEqual(a, b)
+}
+
 // toreflecttype converts an expr type into a runtime type.
 func toreflecttype(t Type) reflect.Type {
 	switch t := t.(type) {
-	case PrimitiveType:
+	case *PrimitiveType:
 		return primRType[t.Kind()]
-	case ArrayType:
+	case *ArrayType:
 		return reflect.ArrayOf(t.Len(), toreflecttype(t.Elem()))
-	case SliceType:
+	case *SliceType:
 		return reflect.SliceOf(toreflecttype(t.Elem()))
-	case StructType:
+	case *StructType:
 		fields := make([]reflect.StructField, 0, t.NumFields())
 		for i := 0; i < t.NumFields(); i++ {
 			field := t.Field(i)
@@ -442,11 +449,11 @@ func toreflecttype(t Type) reflect.Type {
 			})
 		}
 		return reflect.StructOf(fields)
-	case MapType:
+	case *MapType:
 		return reflect.MapOf(toreflecttype(t.Key()), toreflecttype(t.Value()))
-	case PtrType:
+	case *PtrType:
 		return reflect.PtrTo(toreflecttype(t.Elem()))
-	case FuncType:
+	case *FuncType:
 		nin := t.NumIn()
 		in := make([]reflect.Type, 0, nin)
 		for i := 0; i < nin; i++ {
@@ -463,8 +470,33 @@ func toreflecttype(t Type) reflect.Type {
 	}
 }
 
+var typemap = map[reflect.Type]Type{}
+var typemutex = sync.Mutex{}
+
+func savetype(reflect reflect.Type, expr Type) Type {
+	typemutex.Lock()
+	defer typemutex.Unlock()
+
+	typemap[reflect] = expr
+	return expr
+}
+
+func loadtype(reflect reflect.Type) (Type, bool) {
+	typemutex.Lock()
+	defer typemutex.Unlock()
+
+	if expr, ok := typemap[reflect]; ok {
+		return expr, true
+	}
+	return nil, false
+}
+
 // fromreflecttype converts a runtime type into an expr type.
 func fromreflecttype(t reflect.Type) Type {
+	if et, ok := loadtype(t); ok {
+		return et
+	}
+
 	switch t.Kind() {
 	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
 		reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32,
@@ -487,9 +519,15 @@ func fromreflecttype(t reflect.Type) Type {
 	case reflect.Map:
 		return NewMapType(fromreflecttype(t.Key()), fromreflecttype(t.Elem()))
 	case reflect.Ptr:
-		return NewPtrType(fromreflecttype(t.Elem()))
+		et := &PtrType{}
+		savetype(t, et)
+		*et = *NewPtrType(fromreflecttype(t.Elem()))
+		return et
 	case reflect.Slice:
-		return NewSliceType(fromreflecttype(t.Elem()))
+		et := &SliceType{}
+		savetype(t, et)
+		*et = *NewSliceType(fromreflecttype(t.Elem()))
+		return et
 	case reflect.Struct:
 		fields := make([]Field, 0, t.NumField())
 		for i := 0; i < t.NumField(); i++ {
@@ -506,7 +544,7 @@ func fromreflecttype(t reflect.Type) Type {
 }
 
 func assignable(from Type, to Type) bool {
-	if from == to {
+	if TypeEqual(from, to) {
 		return true
 	}
 

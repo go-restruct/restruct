@@ -91,12 +91,12 @@ func (r *MetaResolver) Resolve(ident string) Value {
 
 // StructTypeResolver resolves types of struct fields.
 type StructTypeResolver struct {
-	struc StructType
+	struc *StructType
 }
 
 // NewStructTypeResolver creates a new struct type resolver.
 func NewStructTypeResolver(s interface{}) *StructTypeResolver {
-	return &StructTypeResolver{TypeOf(s).(StructType)}
+	return &StructTypeResolver{TypeOf(s).(*StructType)}
 }
 
 // TypeResolve implements TypeResolver.

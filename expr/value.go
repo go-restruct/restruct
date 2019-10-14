@@ -76,7 +76,7 @@ type val struct {
 }
 
 func promote(from Value, to Type) Value {
-	if from.Type() == to {
+	if TypeEqual(from.Type(), to) {
 		return from
 	}
 
@@ -160,7 +160,7 @@ func coerce1(v Value) Value {
 }
 
 func coerce(lhs Value, rhs Value) (Value, Value) {
-	if lhs.Type() == rhs.Type() {
+	if TypeEqual(lhs.Type(), rhs.Type()) {
 		return coerce1(lhs), coerce1(rhs)
 	} else if assignable(lhs.Type(), rhs.Type()) {
 		return promote(lhs, rhs.Type()), rhs
@@ -254,7 +254,7 @@ func (v val) BitNot() Value {
 }
 
 func (v val) Deref() Value {
-	ptrtype, ok := v.t.(PtrType)
+	ptrtype, ok := v.t.(*PtrType)
 	if !ok {
 		panic(InvalidOpError{Op: "*", V: v})
 	}
@@ -270,15 +270,15 @@ func (v val) Ref() Value {
 
 func (v val) Dot(ident string) Value {
 	switch v.t.(type) {
-	case PackageType:
+	case *PackageType:
 		if sv := v.RawValue().(Package).Symbol(ident); sv != nil {
 			return sv
 		}
-	case StructType:
+	case *StructType:
 		if sv := v.v.FieldByName(ident); sv.IsValid() {
 			return val{sv, TypeOf(sv.Interface())}
 		}
-	case PtrType:
+	case *PtrType:
 		return v.Deref().Dot(ident)
 	}
 	panic(InvalidOpError{Op: ".", V: v})
@@ -844,11 +844,11 @@ func (v val) AndNot(rhs Value) Value {
 
 func (v val) Index(rhs Value) Value {
 	switch t := v.t.(type) {
-	case ArrayType:
+	case *ArrayType:
 		return val{v.v.Index(rhs.Value().Convert(reflect.TypeOf(int(0))).Interface().(int)), t.Elem()}
-	case SliceType:
+	case *SliceType:
 		return val{v.v.Index(rhs.Value().Convert(reflect.TypeOf(int(0))).Interface().(int)), t.Elem()}
-	case MapType:
+	case *MapType:
 		return val{v.v.MapIndex(promote(rhs, t.Key()).Value()), t.Value()}
 	default:
 		panic(InvalidOpError{Op: "[]", V: v})
@@ -856,7 +856,7 @@ func (v val) Index(rhs Value) Value {
 }
 
 func (v val) Call(in []Value) Value {
-	ft, ok := v.t.(FuncType)
+	ft, ok := v.t.(*FuncType)
 	if !ok {
 		panic("Call invoked on non-function")
 	}
