@@ -22,24 +22,12 @@ type Packer interface {
 }
 
 type encoder struct {
+	structstack
 	order      binary.ByteOrder
 	buf        []byte
-	struc      reflect.Value
 	sfields    []field
 	bitCounter int
 	bitSize    int
-	allowExpr  bool
-	exprEnv    expr.Resolver
-}
-
-func (e *encoder) resolver() expr.Resolver {
-	if e.exprEnv == nil {
-		if !e.allowExpr {
-			panic("call restruct.EnableExprBeta() to eanble expressions beta")
-		}
-		e.exprEnv = makeResolver(e.struc)
-	}
-	return e.exprEnv
 }
 
 func getBit(buf []byte, bitSize int, bit int) byte {
@@ -126,7 +114,7 @@ func (e *encoder) skipBits(count int) {
 }
 
 func (e *encoder) skip(f field, v reflect.Value) {
-	e.skipBits(f.SizeOfBits(v, e.struc))
+	e.skipBits(f.SizeOfBits(v, e.ancestor(0)))
 }
 
 func (e *encoder) packer(v reflect.Value) (Packer, bool) {
@@ -184,6 +172,18 @@ func (e *encoder) uintFromField(f field, v reflect.Value) uint64 {
 }
 
 func (e *encoder) write(f field, v reflect.Value) {
+	if f.Flags&RootFlag == RootFlag {
+		e.setancestor(f, v, e.root())
+		return
+	}
+
+	if f.Flags&ParentFlag == ParentFlag {
+		e.setancestor(f, v, e.ancestor(1))
+		return
+	}
+
+	struc := e.ancestor(0)
+
 	if f.Name != "_" {
 		if s, ok := e.packer(v); ok {
 			var err error
@@ -194,7 +194,7 @@ func (e *encoder) write(f field, v reflect.Value) {
 			return
 		}
 	} else {
-		e.skipBits(f.SizeOfBits(v, e.struc))
+		e.skipBits(f.SizeOfBits(v, struc))
 		return
 	}
 
@@ -202,7 +202,6 @@ func (e *encoder) write(f field, v reflect.Value) {
 		return
 	}
 
-	struc := e.struc
 	sfields := e.sfields
 	order := e.order
 
@@ -276,7 +275,7 @@ func (e *encoder) write(f field, v reflect.Value) {
 		}
 
 	case reflect.Struct:
-		e.struc = ov
+		e.push(ov)
 		e.sfields = cachedFieldsFromStruct(f.BinaryType)
 		l := len(e.sfields)
 		for i := 0; i < l; i++ {
@@ -289,7 +288,7 @@ func (e *encoder) write(f field, v reflect.Value) {
 			}
 		}
 		e.sfields = sfields
-		e.struc = struc
+		e.pop(ov)
 
 	case reflect.Int8:
 		e.writeS8(f, int8(e.intFromField(f, ov)))

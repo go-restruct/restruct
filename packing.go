@@ -95,7 +95,8 @@ func Unpack(data []byte, order binary.ByteOrder, v interface{}) (err error) {
 	}()
 
 	f, val := fieldFromIntf(v)
-	d := decoder{order: order, buf: data, allowExpr: expressionsEnabled}
+	ss := structstack{allowexpr: expressionsEnabled}
+	d := decoder{structstack: ss, order: order, buf: data}
 	d.read(f, val)
 
 	return
@@ -149,7 +150,8 @@ func Pack(order binary.ByteOrder, v interface{}) (data []byte, err error) {
 	f, val := fieldFromIntf(v)
 	data = make([]byte, f.SizeOfBytes(val, reflect.Value{}))
 
-	e := encoder{buf: data, order: order, allowExpr: expressionsEnabled}
+	ss := structstack{allowexpr: expressionsEnabled}
+	e := encoder{structstack: ss, buf: data, order: order}
 	e.write(f, val)
 
 	return

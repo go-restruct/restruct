@@ -112,6 +112,12 @@ func TestParseTag(t *testing.T) {
 		{"in=42", tagOptions{InExpr: "42"}, ""},
 		{"out=42", tagOptions{OutExpr: "42"}, ""},
 
+		// Root
+		{"root", tagOptions{RootFlag: true}, ""},
+
+		// Parent
+		{"parent", tagOptions{ParentFlag: true}, ""},
+
 		// Composite
 		{"uint16,little,sizeof=test,skip=5",
 			tagOptions{

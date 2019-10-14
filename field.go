@@ -33,6 +33,12 @@ const (
 	// InvertedBoolFlag causes the true and false states of a boolean to be
 	// flipped in binary.
 	InvertedBoolFlag
+
+	// RootFlag is set when the field points to the root struct.
+	RootFlag
+
+	// ParentFlag is set when the field points to the parent struct.
+	ParentFlag
 )
 
 // Sizer is a type which has a defined size in binary. The SizeOf function
@@ -63,6 +69,8 @@ type field struct {
 	Trivial    bool
 	BitSize    uint8
 	Flags      FieldFlags
+	IsRoot     bool
+	IsParent   bool
 
 	IfExpr   *expr.Program
 	SizeExpr *expr.Program
@@ -160,6 +168,24 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 		// Parse struct tag
 		opts := mustParseTag(val.Tag.Get("struct"))
 		if opts.Ignore {
+			continue
+		}
+
+		if opts.RootFlag {
+			result = append(result, field{
+				Name:  val.Name,
+				Index: i,
+				Flags: RootFlag,
+			})
+			continue
+		}
+
+		if opts.ParentFlag {
+			result = append(result, field{
+				Name:  val.Name,
+				Index: i,
+				Flags: ParentFlag,
+			})
 			continue
 		}
 
@@ -284,6 +310,9 @@ func cachedFieldsFromStruct(typ reflect.Type) (result fields) {
 
 // isTypeTrivial determines if a given type is constant-size.
 func isTypeTrivial(typ reflect.Type) bool {
+	if typ == nil {
+		return false
+	}
 	switch typ.Kind() {
 	case reflect.Bool,
 		reflect.Int,
@@ -405,6 +434,10 @@ func evalIf(f *field, resolver func() expr.Resolver) bool {
 func (f *field) SizeOfBits(val reflect.Value, parent reflect.Value) (size int) {
 	skipBits := f.Skip * 8
 
+	if f.Flags&(RootFlag|ParentFlag) != 0 {
+		return 0
+	}
+
 	if f.Name != "_" {
 		if s, ok := f.bitSizeUsingInterface(val); ok {
 			return s
@@ -475,10 +508,13 @@ func (f *field) SizeOfBits(val reflect.Value, parent reflect.Value) (size int) {
 			return size
 		}
 
-		// Optimization: if the type is trivial, we only need to check the
-		// first element.
 		switch f.NativeType.Kind() {
-		case reflect.Slice, reflect.String, reflect.Array, reflect.Ptr:
+		case reflect.Ptr:
+			elem := f.Elem()
+			return elem.SizeOfBits(val.Elem(), val)
+		case reflect.Slice, reflect.String, reflect.Array:
+			// Optimization: if the type is trivial, we only need to check the
+			// first element.
 			elem := f.Elem()
 			if f.Trivial {
 				size += elem.SizeOfBits(reflect.Zero(f.BinaryType.Elem()), val) * alen

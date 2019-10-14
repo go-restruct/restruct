@@ -19,6 +19,8 @@ type tagOptions struct {
 	BitSize          uint8
 	VariantBoolFlag  bool
 	InvertedBoolFlag bool
+	RootFlag         bool
+	ParentFlag       bool
 
 	IfExpr   string
 	SizeExpr string
@@ -66,6 +68,10 @@ func parseTag(tag string) (tagOptions, error) {
 			result.VariantBoolFlag = true
 		case "invertedbool":
 			result.InvertedBoolFlag = true
+		case "root":
+			result.RootFlag = true
+		case "parent":
+			result.ParentFlag = true
 		default:
 			if strings.HasPrefix(part, "sizeof=") {
 				result.SizeOf = part[7:]

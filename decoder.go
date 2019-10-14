@@ -20,24 +20,12 @@ type Unpacker interface {
 }
 
 type decoder struct {
+	structstack
 	order      binary.ByteOrder
 	buf        []byte
-	struc      reflect.Value
 	sfields    []field
 	bitCounter uint8
 	bitSize    int
-	allowExpr  bool
-	exprEnv    expr.Resolver
-}
-
-func (d *decoder) resolver() expr.Resolver {
-	if d.exprEnv == nil {
-		if !d.allowExpr {
-			panic("call restruct.EnableExprBeta() to eanble expressions beta")
-		}
-		d.exprEnv = makeResolver(d.struc)
-	}
-	return d.exprEnv
 }
 
 func putBit(buf []byte, bitSize int, bit int, val byte) {
@@ -131,7 +119,7 @@ func (d *decoder) skipBits(count int) {
 }
 
 func (d *decoder) skip(f field, v reflect.Value) {
-	d.skipBits(f.SizeOfBits(v, d.struc))
+	d.skipBits(f.SizeOfBits(v, d.ancestor(0)))
 }
 
 func (d *decoder) unpacker(v reflect.Value) (Unpacker, bool) {
@@ -177,6 +165,18 @@ func (d *decoder) setInt(f field, v reflect.Value, x int64) {
 }
 
 func (d *decoder) read(f field, v reflect.Value) {
+	if f.Flags&RootFlag == RootFlag {
+		d.setancestor(f, v, d.root())
+		return
+	}
+
+	if f.Flags&ParentFlag == ParentFlag {
+		d.setancestor(f, v, d.ancestor(1))
+		return
+	}
+
+	struc := d.ancestor(0)
+
 	if f.Name != "_" {
 		if s, ok := d.unpacker(v); ok {
 			var err error
@@ -187,7 +187,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 			return
 		}
 	} else {
-		d.skipBits(f.SizeOfBits(v, d.struc))
+		d.skipBits(f.SizeOfBits(v, struc))
 		return
 	}
 
@@ -195,7 +195,6 @@ func (d *decoder) read(f field, v reflect.Value) {
 		return
 	}
 
-	struc := d.struc
 	sfields := d.sfields
 	order := d.order
 
@@ -244,7 +243,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 		switch f.NativeType.Kind() {
 		case reflect.String:
 			// When using strings, treat as C string.
-			str := string(d.readBytes(f.SizeOfBytes(v, d.struc)))
+			str := string(d.readBytes(f.SizeOfBytes(v, struc)))
 			nul := strings.IndexByte(str, 0)
 			if nul != -1 {
 				str = str[0:nul]
@@ -260,7 +259,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 		}
 
 	case reflect.Struct:
-		d.struc = v
+		d.push(v)
 		d.sfields = cachedFieldsFromStruct(f.BinaryType)
 		l := len(d.sfields)
 		for i := 0; i < l; i++ {
@@ -273,7 +272,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 			}
 		}
 		d.sfields = sfields
-		d.struc = struc
+		d.pop(v)
 
 	case reflect.Ptr:
 		v.Set(reflect.New(v.Type().Elem()))
@@ -287,7 +286,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 			v.Set(reflect.MakeSlice(f.BinaryType, alen, alen))
 			switch f.NativeType.Elem().Kind() {
 			case reflect.Uint8:
-				v.SetBytes(d.readBytes(f.SizeOfBytes(v, d.struc)))
+				v.SetBytes(d.readBytes(f.SizeOfBytes(v, struc)))
 			default:
 				ef := f.Elem()
 				for i := 0; i < alen; i++ {
