@@ -241,6 +241,14 @@ func (e *encoder) write(f field, v reflect.Value) {
 	}
 
 	switch f.BinaryType.Kind() {
+	case reflect.Ptr:
+		// Skip if pointer is nil.
+		if v.IsNil() {
+			return
+		}
+
+		e.write(f.Elem(), v.Elem())
+
 	case reflect.Array, reflect.Slice, reflect.String:
 		switch f.NativeType.Kind() {
 		case reflect.Slice, reflect.String:

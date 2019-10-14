@@ -275,6 +275,10 @@ func (d *decoder) read(f field, v reflect.Value) {
 		d.sfields = sfields
 		d.struc = struc
 
+	case reflect.Ptr:
+		v.Set(reflect.New(v.Type().Elem()))
+		d.read(f.Elem(), v.Elem())
+
 	case reflect.Slice, reflect.String:
 		switch f.NativeType.Kind() {
 		case reflect.String:
