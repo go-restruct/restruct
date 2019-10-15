@@ -32,6 +32,7 @@ func TestParseTag(t *testing.T) {
 		{"msb", tagOptions{Order: binary.BigEndian}, ""},
 		{"lsb", tagOptions{Order: binary.LittleEndian}, ""},
 		{"network", tagOptions{Order: binary.BigEndian}, ""},
+		{"big little", tagOptions{}, "tag: expected comma"},
 
 		// Ignore
 		{"-", tagOptions{Ignore: true}, ""},
@@ -41,6 +42,8 @@ func TestParseTag(t *testing.T) {
 		{"invalid", tagOptions{}, "unknown type invalid"},
 		{"chan int8", tagOptions{}, "channel type not allowed"},
 		{"map[byte]byte", tagOptions{}, "map type not allowed"},
+		{`map[`, tagOptions{}, "struct type: unexpected eof in expr"},
+		{`map[]`, tagOptions{}, "struct type: parsing error"},
 
 		// Types
 		{"uint8", tagOptions{Type: reflect.TypeOf(uint8(0))}, ""},
@@ -59,59 +62,77 @@ func TestParseTag(t *testing.T) {
 		{"uint16:1", tagOptions{Type: reflect.TypeOf(uint16(0)), BitSize: 1}, ""},
 		{"uint32:1", tagOptions{Type: reflect.TypeOf(uint32(0)), BitSize: 1}, ""},
 		{"uint64:1", tagOptions{Type: reflect.TypeOf(uint64(0)), BitSize: 1}, ""},
+		{"[]uint8:1", tagOptions{}, "struct type bits specified on non-bitwise type []uint8"},
 
 		// Wrong bitfields
-		{"uint8:0", tagOptions{}, "bad value on bitfield"},
-		{"uint16:0", tagOptions{}, "bad value on bitfield"},
-		{"uint32:0", tagOptions{}, "bad value on bitfield"},
-		{"uint64:0", tagOptions{}, "bad value on bitfield"},
-		{"int8:0", tagOptions{}, "bad value on bitfield"},
-		{"int16:0", tagOptions{}, "bad value on bitfield"},
-		{"int32:0", tagOptions{}, "bad value on bitfield"},
-		{"int64:0", tagOptions{}, "bad value on bitfield"},
+		{"uint8:0", tagOptions{}, "bit size 0 out of range (1 to 7)"},
+		{"uint16:0", tagOptions{}, "bit size 0 out of range (1 to 15)"},
+		{"uint32:0", tagOptions{}, "bit size 0 out of range (1 to 31)"},
+		{"uint64:0", tagOptions{}, "bit size 0 out of range (1 to 63)"},
+		{"int8:0", tagOptions{}, "bit size 0 out of range (1 to 7)"},
+		{"int16:0", tagOptions{}, "bit size 0 out of range (1 to 15)"},
+		{"int32:0", tagOptions{}, "bit size 0 out of range (1 to 31)"},
+		{"int64:0", tagOptions{}, "bit size 0 out of range (1 to 63)"},
 
-		{"uint8:8", tagOptions{BitSize: 0}, "too high value on bitfield"},
-		{"uint16:16", tagOptions{BitSize: 0}, "too high value on bitfield"},
-		{"uint32:32", tagOptions{BitSize: 0}, "too high value on bitfield"},
-		{"uint64:64", tagOptions{BitSize: 0}, "too high value on bitfield"},
-		{"int8:8", tagOptions{BitSize: 0}, "too high value on bitfield"},
-		{"int16:16", tagOptions{BitSize: 0}, "too high value on bitfield"},
-		{"int32:32", tagOptions{BitSize: 0}, "too high value on bitfield"},
-		{"int64:64", tagOptions{BitSize: 0}, "too high value on bitfield"},
+		{"uint8:8", tagOptions{BitSize: 0}, "bit size 8 out of range (1 to 7)"},
+		{"uint16:16", tagOptions{BitSize: 0}, "bit size 16 out of range (1 to 15)"},
+		{"uint32:32", tagOptions{BitSize: 0}, "bit size 32 out of range (1 to 31)"},
+		{"uint64:64", tagOptions{BitSize: 0}, "bit size 64 out of range (1 to 63)"},
+		{"int8:8", tagOptions{BitSize: 0}, "bit size 8 out of range (1 to 7)"},
+		{"int16:16", tagOptions{BitSize: 0}, "bit size 16 out of range (1 to 15)"},
+		{"int32:32", tagOptions{BitSize: 0}, "bit size 32 out of range (1 to 31)"},
+		{"int64:64", tagOptions{BitSize: 0}, "bit size 64 out of range (1 to 63)"},
 
-		{"uint8:XX", tagOptions{BitSize: 0}, "bad value on bitfield"},
-		{"uint16:XX", tagOptions{BitSize: 0}, "bad value on bitfield"},
-		{"uint32:XX", tagOptions{BitSize: 0}, "bad value on bitfield"},
-		{"uint64:XX", tagOptions{BitSize: 0}, "bad value on bitfield"},
-		{"int8:XX", tagOptions{BitSize: 0}, "bad value on bitfield"},
-		{"int16:XX", tagOptions{BitSize: 0}, "bad value on bitfield"},
-		{"int32:XX", tagOptions{BitSize: 0}, "bad value on bitfield"},
-		{"int64:XX", tagOptions{BitSize: 0}, "bad value on bitfield"},
+		{"uint8:XX", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"uint16:XX", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"uint32:XX", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"uint64:XX", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"int8:XX", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"int16:XX", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"int32:XX", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"int64:XX", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
 
-		{"uint8:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
-		{"uint16:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
-		{"uint32:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
-		{"uint64:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
-		{"int8:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
-		{"int16:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
-		{"int32:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
-		{"int64:X:X", tagOptions{BitSize: 0}, "extra options on type field"},
+		{"uint8:X:X", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"uint16:X:X", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"uint32:X:X", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"uint64:X:X", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"int8:X:X", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"int16:X:X", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"int32:X:X", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+		{"int64:X:X", tagOptions{BitSize: 0}, "struct type bits: invalid integer syntax"},
+
+		// Sizeof
+		{"sizefrom=OtherField", tagOptions{SizeFrom: "OtherField"}, ""},
+		{"sizefrom=日本", tagOptions{SizeFrom: "日本"}, ""},
+		{"sizefrom=日本,variantbool", tagOptions{SizeFrom: "日本", VariantBoolFlag: true}, ""},
+		{"sizefrom=0", tagOptions{}, "sizefrom: invalid identifier character 0"},
 
 		// Sizeof
 		{"sizeof=OtherField", tagOptions{SizeOf: "OtherField"}, ""},
 		{"sizeof=日本", tagOptions{SizeOf: "日本"}, ""},
+		{"sizeof=日本,variantbool", tagOptions{SizeOf: "日本", VariantBoolFlag: true}, ""},
+		{"sizeof=0", tagOptions{}, "sizeof: invalid identifier character 0"},
 
 		// Skip
 		{"skip=4", tagOptions{Skip: 4}, ""},
-		{"skip=字", tagOptions{}, "bad skip amount"},
+		{"skip=字", tagOptions{}, "skip: invalid integer character 字"},
 
 		// Expressions
 		{"if=true", tagOptions{IfExpr: "true"}, ""},
+		{"if=call(0,1)", tagOptions{IfExpr: "call(0,1)"}, ""},
+		{`if=call(")Test)"),sizeof=Test`, tagOptions{IfExpr: `call(")Test)")`, SizeOf: "Test"}, ""},
 		{"size=4", tagOptions{SizeExpr: "4"}, ""},
+		{"size={,", tagOptions{}, "size: unexpected eof in expr"},
 		{"bits=4", tagOptions{BitsExpr: "4"}, ""},
+		{"bits={,", tagOptions{}, "bits: unexpected eof in expr"},
 		{"in=42", tagOptions{InExpr: "42"}, ""},
-		{"out=42", tagOptions{OutExpr: "42"}, ""},
+		{"out=struct{}{}", tagOptions{OutExpr: "struct{}{}"}, ""},
+		{"out=struct{}{},variantbool", tagOptions{OutExpr: "struct{}{}", VariantBoolFlag: true}, ""},
 		{"while=true", tagOptions{WhileExpr: "true"}, ""},
+		{`if="`, tagOptions{}, "if: unexpected eof in literal"},
+		{`while="\"`, tagOptions{}, "while: unexpected eof in literal"},
+		{`in="\"\"""`, tagOptions{}, "in: unexpected eof in literal"},
+		{`out="\"test`, tagOptions{}, "out: unexpected eof in literal"},
 
 		// Root
 		{"root", tagOptions{RootFlag: true}, ""},
@@ -135,6 +156,7 @@ func TestParseTag(t *testing.T) {
 		opts, err := parseTag(test.input)
 		assert.Equal(t, test.opts, opts)
 		if err != nil {
+			assert.NotEmpty(t, test.errstr)
 			assert.Contains(t, err.Error(), test.errstr)
 		}
 	}
