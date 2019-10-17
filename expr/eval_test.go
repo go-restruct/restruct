@@ -68,6 +68,31 @@ func TestEvalSimple(t *testing.T) {
 			"false ? 1.0 : 0.0",
 			0.0,
 		},
+		{
+			TestStruct1{},
+			`"string value!"`,
+			"string value!",
+		},
+		{
+			TestStruct1{},
+			`"equal" == "equal"`,
+			true,
+		},
+		{
+			TestStruct1{},
+			`"equal" == "not equal"`,
+			false,
+		},
+		{
+			TestStruct1{},
+			`"equal" != "not equal"`,
+			true,
+		},
+		{
+			TestStruct1{},
+			`"equal" != "equal"`,
+			false,
+		},
 	}
 
 	for _, test := range tests {

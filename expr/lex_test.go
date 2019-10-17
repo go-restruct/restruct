@@ -107,6 +107,31 @@ func TestScanValid(t *testing.T) {
 				{kind: eoftoken, pos: 18},
 			},
 		},
+		{
+			input: `"a b c" + " d e f"`,
+			expected: []token{
+				{kind: strtoken, pos: 0, sval: "a b c"},
+				{kind: addtoken, pos: 8, sval: "+"},
+				{kind: strtoken, pos: 10, sval: " d e f"},
+				{kind: eoftoken, pos: 18},
+			},
+		},
+		{
+			input: `'a' + 0`,
+			expected: []token{
+				{kind: runetoken, pos: 0, ival: 'a'},
+				{kind: addtoken, pos: 4, sval: "+"},
+				{kind: inttoken, pos: 6, sval: "0", ival: 0, uval: 0, fval: 0},
+				{kind: eoftoken, pos: 7},
+			},
+		},
+		{
+			input: `"aä本\t\000\007\377\x07\xff\u12e4\U00101234\""`,
+			expected: []token{
+				{kind: strtoken, pos: 0, sval: "aä本\t\000\007\377\x07\xff\u12e4\U00101234\""},
+				{kind: eoftoken, pos: 45},
+			},
+		},
 	}
 
 	for _, test := range tests {

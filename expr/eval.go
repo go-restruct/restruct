@@ -42,6 +42,10 @@ func evalnode(resolver Resolver, node node) Value {
 		return literalfloatval(n.fval)
 	case boolnode:
 		return literalboolval(n.val)
+	case strnode:
+		return literalstrval(n.val)
+	case runenode:
+		return literalintval(int64(n.val))
 	case nilnode:
 		return literalnilval()
 	case unaryexpr:

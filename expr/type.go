@@ -23,6 +23,7 @@ var (
 		reflect.Uintptr: NewPrimitiveType(Uintptr),
 		reflect.Float32: NewPrimitiveType(Float32),
 		reflect.Float64: NewPrimitiveType(Float64),
+		reflect.String:  NewPrimitiveType(String),
 	}
 
 	primRType = map[Kind]reflect.Type{
@@ -40,6 +41,7 @@ var (
 		Uintptr: reflect.TypeOf(uintptr(0)),
 		Float32: reflect.TypeOf(float32(0)),
 		Float64: reflect.TypeOf(float64(0)),
+		String:  reflect.TypeOf(string("")),
 	}
 
 	// ErrInvalidKind occurs when you call an inappropriate method for a given kind.
@@ -83,6 +85,7 @@ const (
 	Uintptr
 	Float32
 	Float64
+	String
 
 	// Untyped constants
 	UntypedBool
@@ -113,7 +116,7 @@ type PrimitiveType struct {
 
 // NewPrimitiveType returns a new primitive type.
 func NewPrimitiveType(k Kind) Type {
-	if k < Bool || k > Float64 {
+	if k < Bool || k > String {
 		panic("not a primitive kind")
 	}
 	return &PrimitiveType{kind: k}
@@ -150,6 +153,8 @@ func (t PrimitiveType) String() string {
 		return "float32"
 	case Float64:
 		return "float64"
+	case String:
+		return "string"
 	default:
 		return ""
 	}
@@ -500,7 +505,8 @@ func fromreflecttype(t reflect.Type) Type {
 	switch t.Kind() {
 	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
 		reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32,
-		reflect.Uint64, reflect.Uintptr, reflect.Float32, reflect.Float64:
+		reflect.Uint64, reflect.Uintptr, reflect.Float32, reflect.Float64,
+		reflect.String:
 		return primType[t.Kind()]
 	case reflect.Array:
 		return NewArrayType(t.Len(), fromreflecttype(t.Elem()))

@@ -94,6 +94,10 @@ func (p *parser) parseexpr(depth int) node {
 		n = newfloatnode(p.t)
 	case p.accept(booltoken):
 		n = newboolnode(p.t)
+	case p.accept(strtoken):
+		n = newstrnode(p.t)
+	case p.accept(runetoken):
+		n = newrunenode(p.t)
 	case p.accept(nilkeyword):
 		n = newnilnode(p.t)
 	case p.accept(leftparentoken):

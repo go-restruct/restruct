@@ -1,6 +1,9 @@
 package expr
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 type node interface {
 	source() string
@@ -107,6 +110,34 @@ func (n boolnode) source() string {
 		return "true"
 	}
 	return "false"
+}
+
+// String literal node.
+type strnode struct {
+	pos int
+	val string
+}
+
+func newstrnode(t token) strnode {
+	return strnode{t.pos, t.sval}
+}
+
+func (n strnode) source() string {
+	return fmt.Sprintf("%q", n.val)
+}
+
+// Rune literal node.
+type runenode struct {
+	pos int
+	val rune
+}
+
+func newrunenode(t token) runenode {
+	return runenode{t.pos, rune(t.ival)}
+}
+
+func (n runenode) source() string {
+	return fmt.Sprintf("%q", n.val)
 }
 
 // Nil node.

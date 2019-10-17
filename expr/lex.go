@@ -18,6 +18,10 @@ func isdecimal(ch rune) bool {
 	return '0' <= ch && ch <= '9'
 }
 
+func isoctal(ch rune) bool {
+	return '0' <= ch && ch <= '7'
+}
+
 func ishex(ch rune) bool {
 	return '0' <= ch && ch <= '9' || 'a' <= lower(ch) && lower(ch) <= 'f'
 }
@@ -55,6 +59,8 @@ const (
 	inttoken
 	floattoken
 	booltoken
+	strtoken
+	runetoken
 
 	addtoken
 	subtoken
@@ -197,6 +203,13 @@ func (s *scanner) accept(c rune) bool {
 	return false
 }
 
+func (s *scanner) expect(c rune) {
+	r := s.readrune()
+	if r != c {
+		panic(fmt.Errorf("expected %c", r))
+	}
+}
+
 func (s *scanner) peekmatch(f func(rune) bool) bool {
 	c := s.readrune()
 	s.unreadrune()
@@ -210,6 +223,14 @@ func (s *scanner) acceptfn(f func(rune) bool) (rune, bool) {
 	}
 	s.unreadrune()
 	return r, false
+}
+
+func (s *scanner) expectfn(f func(rune) bool) rune {
+	r, ok := s.acceptfn(f)
+	if !ok {
+		panic(fmt.Errorf("unexpected %c", r))
+	}
+	return r
 }
 
 func (s *scanner) tokensym(k tokenkind, src string) token {
@@ -284,6 +305,95 @@ func (s *scanner) scannumber(t token) token {
 	return t
 }
 
+func runebytes(r rune) []byte {
+	runebuf := [4]byte{}
+	l := utf8.EncodeRune(runebuf[:], rune(r))
+	return runebuf[:l]
+}
+
+func (s *scanner) scanescape(quote byte) []byte {
+	switch {
+	case s.accept('a'):
+		return []byte{'\a'}
+	case s.accept('b'):
+		return []byte{'\b'}
+	case s.accept('f'):
+		return []byte{'\f'}
+	case s.accept('n'):
+		return []byte{'\n'}
+	case s.accept('r'):
+		return []byte{'\r'}
+	case s.accept('t'):
+		return []byte{'\t'}
+	case s.accept('v'):
+		return []byte{'\v'}
+	case s.accept('\\'):
+		return []byte{'\\'}
+	case s.accept(rune(quote)):
+		return []byte{quote}
+	case s.peekmatch(isoctal):
+		octal := string([]rune{s.expectfn(isoctal), s.expectfn(isoctal), s.expectfn(isoctal)})
+		code, err := strconv.ParseUint(octal, 8, 8)
+		if err != nil {
+			panic(err)
+		}
+		return []byte{byte(code)}
+	case s.accept('x'):
+		hex := string([]rune{s.expectfn(ishex), s.expectfn(ishex)})
+		code, err := strconv.ParseUint(hex, 16, 8)
+		if err != nil {
+			panic(err)
+		}
+		return []byte{byte(code)}
+	case s.accept('u'):
+		hex := string([]rune{
+			s.expectfn(ishex), s.expectfn(ishex), s.expectfn(ishex), s.expectfn(ishex),
+		})
+		code, err := strconv.ParseUint(hex, 16, 16)
+		if err != nil {
+			panic(err)
+		}
+		return runebytes(rune(code))
+	case s.accept('U'):
+		hex := string([]rune{
+			s.expectfn(ishex), s.expectfn(ishex), s.expectfn(ishex), s.expectfn(ishex),
+			s.expectfn(ishex), s.expectfn(ishex), s.expectfn(ishex), s.expectfn(ishex),
+		})
+		code, err := strconv.ParseUint(hex, 16, 32)
+		if err != nil {
+			panic(err)
+		}
+		return runebytes(rune(code))
+	default:
+		panic(fmt.Errorf("unexpected escape code %c", s.readrune()))
+	}
+}
+
+func (s *scanner) scanstring() token {
+	str := []byte{}
+	for {
+		switch {
+		case s.accept('"'):
+			return token{kind: strtoken, sval: string(str)}
+		case s.accept('\\'):
+			str = append(str, s.scanescape('"')...)
+		default:
+			str = append(str, runebytes(s.readrune())...)
+		}
+	}
+}
+
+func (s *scanner) scanrune() token {
+	defer s.expect('\'')
+	switch {
+	case s.accept('\\'):
+		r := []rune(string(s.scanescape('\'')))
+		return token{kind: runetoken, ival: int64(r[0])}
+	default:
+		return token{kind: runetoken, ival: int64(s.readrune())}
+	}
+}
+
 func (s *scanner) scan() (t token) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -311,6 +421,10 @@ func (s *scanner) scan() (t token) {
 		return s.scanident()
 	case s.peekmatch(isdigit):
 		return s.scannumber(token{})
+	case s.accept('"'):
+		return s.scanstring()
+	case s.accept('\''):
+		return s.scanrune()
 	case s.accept('+'):
 		return s.tokensym(addtoken, "+")
 	case s.accept('-'):

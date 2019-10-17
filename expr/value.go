@@ -487,6 +487,8 @@ func (v val) Add(rhs Value) Value {
 		return val{reflect.ValueOf(lv + r.RawValue().(float32)), NewPrimitiveType(Float32)}
 	case float64:
 		return val{reflect.ValueOf(lv + r.RawValue().(float64)), NewPrimitiveType(Float64)}
+	case string:
+		return val{reflect.ValueOf(lv + r.RawValue().(string)), NewPrimitiveType(String)}
 	default:
 		panic(InvalidOpError{Op: "+", V: l})
 	}
@@ -843,11 +845,15 @@ func (v val) AndNot(rhs Value) Value {
 }
 
 func (v val) Index(rhs Value) Value {
+	if v.t.Kind() == String {
+		index := promote(rhs, NewPrimitiveType(Int)).RawValue().(int)
+		return val{reflect.ValueOf(v.RawValue().(string)[index]), NewPrimitiveType(Uint8)}
+	}
 	switch t := v.t.(type) {
 	case *ArrayType:
-		return val{v.v.Index(rhs.Value().Convert(reflect.TypeOf(int(0))).Interface().(int)), t.Elem()}
+		return val{v.v.Index(promote(rhs, NewPrimitiveType(Int)).RawValue().(int)), t.Elem()}
 	case *SliceType:
-		return val{v.v.Index(rhs.Value().Convert(reflect.TypeOf(int(0))).Interface().(int)), t.Elem()}
+		return val{v.v.Index(promote(rhs, NewPrimitiveType(Int)).RawValue().(int)), t.Elem()}
 	case *MapType:
 		return val{v.v.MapIndex(promote(rhs, t.Key()).Value()), t.Value()}
 	default:
@@ -881,6 +887,10 @@ func ValueOf(i interface{}) Value {
 
 func literalboolval(v bool) Value {
 	return val{reflect.ValueOf(v), NewLiteralType(UntypedBool)}
+}
+
+func literalstrval(v string) Value {
+	return val{reflect.ValueOf(v), NewPrimitiveType(String)}
 }
 
 func literalintval(v int64) Value {
