@@ -69,7 +69,17 @@ func (s *structstack) evalWhile(f field) bool {
 func (s *structstack) fieldbits(f field, val reflect.Value) (size int) {
 	skipBits := f.Skip * 8
 
-	if f.Flags&(RootFlag|ParentFlag) != 0 {
+	if f.Flags&RootFlag == RootFlag {
+		s.setancestor(f, val, s.root())
+		return 0
+	}
+
+	if f.Flags&ParentFlag == ParentFlag {
+		for i := 1; i < len(s.stack); i++ {
+			if s.setancestor(f, val, s.ancestor(i)) {
+				break
+			}
+		}
 		return 0
 	}
 
@@ -199,13 +209,18 @@ func (s *structstack) pop(v reflect.Value) {
 	}
 }
 
-func (s *structstack) setancestor(f field, v reflect.Value, ancestor reflect.Value) {
-	if ancestor.CanAddr() && ancestor.Kind() != reflect.Ptr {
+func (s *structstack) setancestor(f field, v reflect.Value, ancestor reflect.Value) bool {
+	if ancestor.Kind() != reflect.Ptr {
+		if !ancestor.CanAddr() {
+			return false
+		}
 		ancestor = ancestor.Addr()
 	}
 	if ancestor.Type().AssignableTo(v.Type()) {
 		v.Set(ancestor)
+		return true
 	}
+	return false
 }
 
 func (s *structstack) root() reflect.Value {

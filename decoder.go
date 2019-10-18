@@ -168,7 +168,11 @@ func (d *decoder) read(f field, v reflect.Value) {
 	}
 
 	if f.Flags&ParentFlag == ParentFlag {
-		d.setancestor(f, v, d.ancestor(1))
+		for i := 1; i < len(d.stack); i++ {
+			if d.setancestor(f, v, d.ancestor(i)) {
+				break
+			}
+		}
 		return
 	}
 

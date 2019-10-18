@@ -175,7 +175,11 @@ func (e *encoder) write(f field, v reflect.Value) {
 	}
 
 	if f.Flags&ParentFlag == ParentFlag {
-		e.setancestor(f, v, e.ancestor(1))
+		for i := 1; i < len(e.stack); i++ {
+			if e.setancestor(f, v, e.ancestor(i)) {
+				break
+			}
+		}
 		return
 	}
 
