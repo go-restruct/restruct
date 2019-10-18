@@ -23,11 +23,15 @@ type File struct {
 // Chunk contains the data of a single chunk.
 type Chunk struct {
 	Len  uint32
-	Type string     `struct:"[4]byte"`
-	IHDR *ChunkIHDR `struct-if:"Type == $'IHDR'" json:",omitempty"`
-	IDAT *ChunkIDAT `struct-if:"Type == $'IDAT'" json:",omitempty"`
-	IEND *ChunkIEND `struct-if:"Type == $'IEND'" json:",omitempty"`
-	CRC  uint32
+	Type string `struct:"[4]byte"`
+	Data struct {
+		Chunk *Chunk `struct:"parent" json:"-"`
+
+		IHDR *ChunkIHDR `struct-if:"Chunk.Type == $'IHDR'" json:",omitempty"`
+		IDAT *ChunkIDAT `struct-if:"Chunk.Type == $'IDAT'" json:",omitempty"`
+		IEND *ChunkIEND `struct-if:"Chunk.Type == $'IEND'" json:",omitempty"`
+	}
+	CRC uint32
 }
 
 // ChunkIHDR contains the body of a IHDR chunk.
