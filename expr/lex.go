@@ -369,14 +369,14 @@ func (s *scanner) scanescape(quote byte) []byte {
 	}
 }
 
-func (s *scanner) scanstring() token {
+func (s *scanner) scanstring(quote byte) token {
 	str := []byte{}
 	for {
 		switch {
-		case s.accept('"'):
+		case s.accept(rune(quote)):
 			return token{kind: strtoken, sval: string(str)}
 		case s.accept('\\'):
-			str = append(str, s.scanescape('"')...)
+			str = append(str, s.scanescape(quote)...)
 		default:
 			str = append(str, runebytes(s.readrune())...)
 		}
@@ -422,9 +422,12 @@ func (s *scanner) scan() (t token) {
 	case s.peekmatch(isdigit):
 		return s.scannumber(token{})
 	case s.accept('"'):
-		return s.scanstring()
+		return s.scanstring('"')
 	case s.accept('\''):
 		return s.scanrune()
+	case s.accept('$'):
+		s.expect('\'')
+		return s.scanstring('\'')
 	case s.accept('+'):
 		return s.tokensym(addtoken, "+")
 	case s.accept('-'):
