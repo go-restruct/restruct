@@ -23,11 +23,11 @@ type File struct {
 // Chunk contains the data of a single chunk.
 type Chunk struct {
 	Len  uint32
-	Type uint32
+	Type string `struct:"[4]byte"`
 
-	IHDR *ChunkIHDR `struct:"if=(Type == 0x49484452)" json:",omitempty"`
-	IDAT *ChunkIDAT `struct:"if=(Type == 0x49444154)" json:",omitempty"`
-	IEND *ChunkIEND `struct:"if=(Type == 0x49454e44)" json:",omitempty"`
+	IHDR *ChunkIHDR `struct:"if=(Type == \"IHDR\")" json:",omitempty"`
+	IDAT *ChunkIDAT `struct:"if=(Type == \"IDAT\")" json:",omitempty"`
+	IEND *ChunkIEND `struct:"if=(Type == \"IEND\")" json:",omitempty"`
 
 	CRC uint32
 }
