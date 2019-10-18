@@ -17,19 +17,17 @@ const (
 type File struct {
 	Magic  [8]byte
 	Header Chunk
-	Chunks []Chunk `struct:"while=!_eof"`
+	Chunks []Chunk `struct-while:"!_eof"`
 }
 
 // Chunk contains the data of a single chunk.
 type Chunk struct {
 	Len  uint32
-	Type string `struct:"[4]byte"`
-
-	IHDR *ChunkIHDR `struct:"if=(Type == \"IHDR\")" json:",omitempty"`
-	IDAT *ChunkIDAT `struct:"if=(Type == \"IDAT\")" json:",omitempty"`
-	IEND *ChunkIEND `struct:"if=(Type == \"IEND\")" json:",omitempty"`
-
-	CRC uint32
+	Type string     `struct:"[4]byte"`
+	IHDR *ChunkIHDR `struct-if:"Type == $'IHDR'" json:",omitempty"`
+	IDAT *ChunkIDAT `struct-if:"Type == $'IDAT'" json:",omitempty"`
+	IEND *ChunkIEND `struct-if:"Type == $'IEND'" json:",omitempty"`
+	CRC  uint32
 }
 
 // ChunkIHDR contains the body of a IHDR chunk.
@@ -47,7 +45,7 @@ type ChunkIHDR struct {
 type ChunkIDAT struct {
 	Parent *Chunk `struct:"parent" json:"-"`
 
-	Data []byte `struct:"size=Parent.Len"`
+	Data []byte `struct-size:"Parent.Len"`
 }
 
 // ChunkIEND contains the body of a IEND chunk.
