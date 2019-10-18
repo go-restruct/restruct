@@ -148,6 +148,15 @@ func validSizeType(typ reflect.Type) bool {
 	}
 }
 
+func parseExpr(sources ...string) *expr.Program {
+	for _, s := range sources {
+		if s != "" {
+			return expr.ParseString(s)
+		}
+	}
+	return nil
+}
+
 // fieldsFromStruct returns a slice of fields for binary packing and unpacking.
 func fieldsFromStruct(typ reflect.Type) (result fields) {
 	if typ.Kind() != reflect.Struct {
@@ -228,35 +237,17 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 		}
 
 		// Expr
-		var ifExpr *expr.Program
-		if opts.IfExpr != "" {
-			ifExpr = expr.ParseString(opts.IfExpr)
+		ifExpr := parseExpr(opts.IfExpr, val.Tag.Get("struct-if"))
+		sizeExpr := parseExpr(opts.SizeExpr, val.Tag.Get("struct-size"))
+		bitsExpr := parseExpr(opts.BitsExpr, val.Tag.Get("struct-bits"))
+		inExpr := parseExpr(opts.InExpr, val.Tag.Get("struct-in"))
+		outExpr := parseExpr(opts.OutExpr, val.Tag.Get("struct-out"))
+		whileExpr := parseExpr(opts.OutExpr, val.Tag.Get("struct-while"))
+		if sizeExpr != nil && !validSizeType(val.Type) {
+			panic(ErrInvalidSize)
 		}
-		var sizeExpr *expr.Program
-		if opts.SizeExpr != "" {
-			if !validSizeType(val.Type) {
-				panic(ErrInvalidSize)
-			}
-			sizeExpr = expr.ParseString(opts.SizeExpr)
-		}
-		var bitsExpr *expr.Program
-		if opts.BitsExpr != "" {
-			if !validBitType(ftyp) {
-				panic(ErrInvalidBits)
-			}
-			bitsExpr = expr.ParseString(opts.BitsExpr)
-		}
-		var inExpr *expr.Program
-		if opts.InExpr != "" {
-			inExpr = expr.ParseString(opts.InExpr)
-		}
-		var outExpr *expr.Program
-		if opts.OutExpr != "" {
-			outExpr = expr.ParseString(opts.OutExpr)
-		}
-		var whileExpr *expr.Program
-		if opts.WhileExpr != "" {
-			whileExpr = expr.ParseString(opts.WhileExpr)
+		if bitsExpr != nil && !validBitType(ftyp) {
+			panic(ErrInvalidBits)
 		}
 
 		// Flags
