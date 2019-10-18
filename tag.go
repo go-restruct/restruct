@@ -52,13 +52,16 @@ type tagOptions struct {
 	InvertedBoolFlag bool
 	RootFlag         bool
 	ParentFlag       bool
+	DefaultFlag      bool
 
-	IfExpr    string
-	SizeExpr  string
-	BitsExpr  string
-	InExpr    string
-	OutExpr   string
-	WhileExpr string
+	IfExpr     string
+	SizeExpr   string
+	BitsExpr   string
+	InExpr     string
+	OutExpr    string
+	WhileExpr  string
+	SwitchExpr string
+	CaseExpr   string
 }
 
 func (opts *tagOptions) parse(tag string) error {
@@ -185,6 +188,8 @@ func (opts *tagOptions) parse(tag string) error {
 			opts.RootFlag = true
 		case accept("parent"):
 			opts.ParentFlag = true
+		case accept("default"):
+			opts.DefaultFlag = true
 		case accept("sizeof="):
 			if opts.SizeOf, err = acceptIdent(); err != nil {
 				return fmt.Errorf("sizeof: %v", err)
@@ -220,6 +225,14 @@ func (opts *tagOptions) parse(tag string) error {
 		case accept("while="):
 			if opts.WhileExpr, err = acceptExpr(); err != nil {
 				return fmt.Errorf("while: %v", err)
+			}
+		case accept("switch="):
+			if opts.SwitchExpr, err = acceptExpr(); err != nil {
+				return fmt.Errorf("switch: %v", err)
+			}
+		case accept("case="):
+			if opts.CaseExpr, err = acceptExpr(); err != nil {
+				return fmt.Errorf("case: %v", err)
 			}
 		case accept("-"):
 			return errors.New("extra options on ignored field")

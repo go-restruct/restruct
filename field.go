@@ -39,6 +39,9 @@ const (
 
 	// ParentFlag is set when the field points to the parent struct.
 	ParentFlag
+
+	// DefaultFlag is set when the field is designated as a switch case default.
+	DefaultFlag
 )
 
 // Sizer is a type which has a defined size in binary. The SizeOf function
@@ -72,12 +75,14 @@ type field struct {
 	IsRoot     bool
 	IsParent   bool
 
-	IfExpr    *expr.Program
-	SizeExpr  *expr.Program
-	BitsExpr  *expr.Program
-	InExpr    *expr.Program
-	OutExpr   *expr.Program
-	WhileExpr *expr.Program
+	IfExpr     *expr.Program
+	SizeExpr   *expr.Program
+	BitsExpr   *expr.Program
+	InExpr     *expr.Program
+	OutExpr    *expr.Program
+	WhileExpr  *expr.Program
+	SwitchExpr *expr.Program
+	CaseExpr   *expr.Program
 }
 
 // fields represents a structure.
@@ -109,7 +114,7 @@ func (f *field) Elem() field {
 		TIndex:     -1,
 		SIndex:     -1,
 		Skip:       0,
-		Trivial:    f.Trivial,
+		Trivial:    isTypeTrivial(t.Elem()),
 	}
 }
 
@@ -242,7 +247,9 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 		bitsExpr := parseExpr(opts.BitsExpr, val.Tag.Get("struct-bits"))
 		inExpr := parseExpr(opts.InExpr, val.Tag.Get("struct-in"))
 		outExpr := parseExpr(opts.OutExpr, val.Tag.Get("struct-out"))
-		whileExpr := parseExpr(opts.OutExpr, val.Tag.Get("struct-while"))
+		whileExpr := parseExpr(opts.WhileExpr, val.Tag.Get("struct-while"))
+		switchExpr := parseExpr(opts.SwitchExpr, val.Tag.Get("struct-switch"))
+		caseExpr := parseExpr(opts.CaseExpr, val.Tag.Get("struct-case"))
 		if sizeExpr != nil && !validSizeType(val.Type) {
 			panic(ErrInvalidSize)
 		}
@@ -257,6 +264,9 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 		}
 		if opts.InvertedBoolFlag {
 			flags |= InvertedBoolFlag
+		}
+		if opts.DefaultFlag {
+			flags |= DefaultFlag
 		}
 
 		result = append(result, field{
@@ -277,6 +287,8 @@ func fieldsFromStruct(typ reflect.Type) (result fields) {
 			InExpr:     inExpr,
 			OutExpr:    outExpr,
 			WhileExpr:  whileExpr,
+			SwitchExpr: switchExpr,
+			CaseExpr:   caseExpr,
 		})
 	}
 

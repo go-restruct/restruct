@@ -25,12 +25,11 @@ type Chunk struct {
 	Len  uint32
 	Type string `struct:"[4]byte"`
 	Data struct {
-		Chunk *Chunk `struct:"parent" json:"-"`
-
-		IHDR *ChunkIHDR `struct-if:"Chunk.Type == $'IHDR'" json:",omitempty"`
-		IDAT *ChunkIDAT `struct-if:"Chunk.Type == $'IDAT'" json:",omitempty"`
-		IEND *ChunkIEND `struct-if:"Chunk.Type == $'IEND'" json:",omitempty"`
-	}
+		IHDR *ChunkIHDR `struct-case:"$'IHDR'" json:",omitempty"`
+		IDAT *ChunkIDAT `struct-case:"$'IDAT'" json:",omitempty"`
+		IEND *ChunkIEND `struct-case:"$'IEND'" json:",omitempty"`
+		Raw  *ChunkRaw  `struct:"default" json:",omitempty"`
+	} `struct-switch:"Type"`
 	CRC uint32
 }
 
@@ -48,8 +47,13 @@ type ChunkIHDR struct {
 // ChunkIDAT contains the body of a IDAT chunk.
 type ChunkIDAT struct {
 	Parent *Chunk `struct:"parent" json:"-"`
+	Data   []byte `struct-size:"Parent.Len"`
+}
 
-	Data []byte `struct-size:"Parent.Len"`
+// ChunkRaw contains the body of an unrecognized chunk.
+type ChunkRaw struct {
+	Parent *Chunk `struct:"parent" json:"-"`
+	Data   []byte `struct-size:"Parent.Len"`
 }
 
 // ChunkIEND contains the body of a IEND chunk.

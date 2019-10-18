@@ -168,6 +168,43 @@ func (e *encoder) uintFromField(f field, v reflect.Value) uint64 {
 	}
 }
 
+func (e *encoder) switc(f field, v reflect.Value, on interface{}) {
+	var def *switchcase
+
+	if v.Kind() != reflect.Struct {
+		panic(fmt.Errorf("%s: only switches on structs are valid", f.Name))
+	}
+
+	sfields := cachedFieldsFromStruct(f.BinaryType)
+	l := len(sfields)
+
+	for i := 0; i < l; i++ {
+		f := sfields[i]
+		v := v.Field(f.Index)
+
+		if f.Flags&DefaultFlag != 0 {
+			if def != nil {
+				panic(fmt.Errorf("%s: only one default case is allowed", f.Name))
+			}
+			def = &switchcase{f, v}
+			continue
+		}
+
+		if f.CaseExpr == nil {
+			panic(fmt.Errorf("%s: only cases are valid inside switches", f.Name))
+		}
+
+		if e.evalExpr(f.CaseExpr) == on {
+			e.write(f, v)
+			return
+		}
+	}
+
+	if def != nil {
+		e.write(def.f, def.v)
+	}
+}
+
 func (e *encoder) write(f field, v reflect.Value) {
 	if f.Flags&RootFlag == RootFlag {
 		e.setancestor(f, v, e.root())
@@ -180,6 +217,11 @@ func (e *encoder) write(f field, v reflect.Value) {
 				break
 			}
 		}
+		return
+	}
+
+	if f.SwitchExpr != nil {
+		e.switc(f, v, e.evalExpr(f.SwitchExpr))
 		return
 	}
 

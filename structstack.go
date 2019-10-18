@@ -1,10 +1,16 @@
 package restruct
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/go-restruct/restruct/expr"
 )
+
+type switchcase struct {
+	f field
+	v reflect.Value
+}
 
 type structstack struct {
 	buf       []byte
@@ -65,6 +71,44 @@ func (s *structstack) evalWhile(f field) bool {
 	panic("expected bool value for while expr")
 }
 
+func (s *structstack) switcbits(f field, v reflect.Value, on interface{}) (size int) {
+	var def *switchcase
+
+	if v.Kind() != reflect.Struct {
+		panic(fmt.Errorf("%s: only switches on structs are valid", f.Name))
+	}
+
+	sfields := cachedFieldsFromStruct(f.BinaryType)
+	l := len(sfields)
+
+	for i := 0; i < l; i++ {
+		f := sfields[i]
+		v := v.Field(f.Index)
+
+		if f.Flags&DefaultFlag != 0 {
+			if def != nil {
+				panic(fmt.Errorf("%s: only one default case is allowed", f.Name))
+			}
+			def = &switchcase{f, v}
+			continue
+		}
+
+		if f.CaseExpr == nil {
+			panic(fmt.Errorf("%s: only cases are valid inside switches", f.Name))
+		}
+
+		if s.evalExpr(f.CaseExpr) == on {
+			return s.fieldbits(f, v)
+		}
+	}
+
+	if def != nil {
+		return s.fieldbits(def.f, def.v)
+	}
+
+	return 0
+}
+
 // fieldbits determines the encoded size of a field in bits.
 func (s *structstack) fieldbits(f field, val reflect.Value) (size int) {
 	skipBits := f.Skip * 8
@@ -81,6 +125,10 @@ func (s *structstack) fieldbits(f field, val reflect.Value) (size int) {
 			}
 		}
 		return 0
+	}
+
+	if f.SwitchExpr != nil {
+		return s.switcbits(f, val, s.evalExpr(f.SwitchExpr))
 	}
 
 	if f.Name != "_" {
@@ -144,11 +192,11 @@ func (s *structstack) fieldbits(f field, val reflect.Value) (size int) {
 		case reflect.Ptr:
 			return s.fieldbits(f.Elem(), val.Elem())
 		case reflect.Slice, reflect.String, reflect.Array:
-			// Optimization: if the type is trivial, we only need to check the
-			// first element.
+			// Optimization: if the element type is trivial, we can derive the
+			// length from a single element.
 			elem := f.Elem()
-			if f.Trivial {
-				size += s.fieldbits(elem, reflect.Zero(f.BinaryType.Elem())) * alen
+			if elem.Trivial {
+				size += s.fieldbits(elem, reflect.Zero(elem.BinaryType)) * alen
 			} else {
 				for i := 0; i < alen; i++ {
 					size += s.fieldbits(elem, val.Index(i))
