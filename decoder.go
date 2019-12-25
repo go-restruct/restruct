@@ -365,7 +365,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 					}
 				}
 			} else {
-				v.Set(reflect.MakeSlice(f.BinaryType, alen, alen))
+				v.Set(reflect.MakeSlice(f.NativeType, alen, alen))
 				fixed()
 			}
 		default:

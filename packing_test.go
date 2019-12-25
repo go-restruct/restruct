@@ -292,6 +292,31 @@ func TestUnpack(t *testing.T) {
 		},
 		{
 			data: []byte{
+				0x00, 0x00, 0x00, 0x03,
+			},
+			bitsize: 32,
+			value: struct {
+				Array [1]int `struct:"[1]int32"`
+			}{
+				Array: [1]int{3},
+			},
+		},
+		{
+			data: []byte{
+				0x00, 0x00, 0x00, 0x01,
+				0x00, 0x00, 0x00, 0x03,
+			},
+			bitsize: 64,
+			value: struct {
+				Size  int `struct:"int32,sizeof=Array"`
+				Array []int `struct:"[]int32"`
+			}{
+				Size:  1,
+				Array: []int{3},
+			},
+		},
+		{
+			data: []byte{
 				0x00, 0x00, 0x00, 0x01,
 				0x00, 0x00, 0x00, 0x03,
 			},
