@@ -286,7 +286,7 @@ func (d *decoder) read(f field, v reflect.Value) {
 
 		// If the underlying value is a slice, initialize it.
 		if f.NativeType.Kind() == reflect.Slice {
-			v.Set(reflect.MakeSlice(reflect.SliceOf(f.BinaryType.Elem()), l, l))
+			v.Set(reflect.MakeSlice(reflect.SliceOf(f.NativeType.Elem()), l, l))
 		}
 
 		switch f.NativeType.Kind() {
