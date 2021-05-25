@@ -26,7 +26,6 @@ func TestUnpack(t *testing.T) {
 				Dd: 0x12345678,
 			},
 		},
-
 		{
 			data: []byte{
 				0x55, 0x55,
@@ -42,6 +41,114 @@ func TestUnpack(t *testing.T) {
 				B: 0x02,
 				C: 0xAA,
 				D: 0x05,
+			},
+		},
+		{
+			data: []byte{
+				0x55, 0x55,
+			},
+			bitsize: 16,
+			value: struct {
+				A int8 `struct:"int8:3"`
+				B int8 `struct:"int8:2,big"`
+				C int8 `struct:"int8"`
+				D int8 `struct:"int8:3"`
+			}{
+				A: 0x02,
+				B: 0x02,
+				C: -0x56,
+				D: -0x03,
+			},
+		},
+		{
+			data: []byte{
+				0xFF, 0xFF,
+			},
+			bitsize: 16,
+			value: struct {
+				A int8 `struct:"int8:3"`
+				B int8 `struct:"int8:2"`
+				C int8 `struct:"int8"`
+				D int8 `struct:"int8:3"`
+			}{
+				A: -1,
+				B: -1,
+				C: -1,
+				D: -1,
+			},
+		},
+		{
+			data: []byte{
+				0xFF, 0xFF, 0xFF, 0xFF,
+			},
+			bitsize: 32,
+			value: struct {
+				A int32 `struct:"int32:24"`
+				B int8  `struct:"int16:8"`
+			}{A: -1, B: -1},
+		},
+		{
+			data: []byte{
+				0xFF, 0xFF, 0xFF, 0xFF,
+				0xFF, 0xFF, 0xFF, 0xFF,
+			},
+			bitsize: 64,
+			value: struct {
+				A int64 `struct:"int64:49"`
+				B int64 `struct:"int64:15"`
+			}{A: -1, B: -1},
+		},
+		{
+			data: []byte{
+				0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x80, 0x01,
+			},
+			bitsize: 64,
+			value: struct {
+				A int64 `struct:"int64:49"`
+				B int64 `struct:"int64:15"`
+			}{A: 1, B: 1},
+		},
+		{
+			data: []byte{
+				0x0F, 0x0F, 0x0F, 0x0F,
+				0x0F, 0x0F, 0x0F, 0x0F,
+			},
+			bitsize: 64,
+			value: struct {
+				A int64 `struct:"int64:49"`
+				B int64 `struct:"int64:15"`
+			}{
+				A: 0x00001E1E1E1E1E1E,
+				B: 0x0000000000000F0F,
+			},
+		},
+		{
+			data: []byte{
+				0xAA, 0xBB, 0xCC, 0xDD,
+				0xEE, 0xFF, 0x00, 0x11,
+			},
+			bitsize: 64,
+			value: struct {
+				A uint64 `struct:"uint64:48,little"`
+				B uint64 `struct:"uint16,little"`
+			}{
+				A: 0x0000FFEEDDCCBBAA,
+				B: 0x0000000000001100,
+			},
+		},
+		{
+			data: []byte{
+				0xAA, 0xBB, 0xCC, 0xDD,
+				0xEE, 0xFF, 0x00, 0x11,
+			},
+			bitsize: 64,
+			value: struct {
+				A int64 `struct:"int64:48,little"`
+				B int64 `struct:"int16,little"`
+			}{
+				A: -0x0000001122334456,
+				B: 0x0000000000001100,
 			},
 		},
 		{
@@ -308,7 +415,7 @@ func TestUnpack(t *testing.T) {
 			},
 			bitsize: 64,
 			value: struct {
-				Size  int `struct:"int32,sizeof=Array"`
+				Size  int   `struct:"int32,sizeof=Array"`
 				Array []int `struct:"[]int32"`
 			}{
 				Size:  1,
