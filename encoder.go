@@ -49,10 +49,18 @@ func (e *encoder) writeBits(f field, inBuf []byte) {
 		encodedBits = 8 * len(inBuf)
 	} else {
 		encodedBits = int(e.bitSize)
-	}
 
-	// Crop input buffer to relevant bytes only.
-	inBuf = inBuf[len(inBuf)-(encodedBits+7)/8:]
+		// HACK: Go's generic endianness abstraction is not great if you are
+		// working with bits directly. Here we hardcode a case for little endian
+		// because there is no other obvious way to deal with it.
+		//
+		// Crop input buffer to relevant bytes only.
+		if e.order == binary.LittleEndian {
+			inBuf = inBuf[:(encodedBits+7)/8]
+		} else {
+			inBuf = inBuf[len(inBuf)-(encodedBits+7)/8:]
+		}
+	}
 
 	if e.bitCounter == 0 && encodedBits%8 == 0 {
 		// Fast path: we are fully byte-aligned.

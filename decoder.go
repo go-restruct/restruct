@@ -48,10 +48,18 @@ func (d *decoder) readBits(f field, outBuf []byte) {
 		decodedBits = 8 * len(outBuf)
 	} else {
 		decodedBits = int(d.bitSize)
-	}
 
-	// Crop output buffer to relevant bytes only.
-	outBuf = outBuf[len(outBuf)-(decodedBits+7)/8:]
+		// HACK: Go's generic endianness abstraction is not great if you are
+		// working with bits directly. Here we hardcode a case for little endian
+		// because there is no other obvious way to deal with it.
+		//
+		// Crop output buffer to relevant bytes only.
+		if d.order == binary.LittleEndian {
+			outBuf = outBuf[:(decodedBits+7)/8]
+		} else {
+			outBuf = outBuf[len(outBuf)-(decodedBits+7)/8:]
+		}
+	}
 
 	if d.bitCounter == 0 && decodedBits%8 == 0 {
 		// Fast path: we are fully byte-aligned.
@@ -68,37 +76,73 @@ func (d *decoder) readBits(f field, outBuf []byte) {
 	}
 }
 
-func (d *decoder) read8(f field) uint8 {
+func (d *decoder) extend8(val uint8, signed bool) uint8 {
+	if signed && d.bitSize != 0 && val&1<<uint(d.bitSize-1) != 0 {
+		val |= ^((1 << uint(d.bitSize)) - 1)
+	}
+	return val
+}
+
+func (d *decoder) extend16(val uint16, signed bool) uint16 {
+	if signed && d.bitSize != 0 && val&1<<uint(d.bitSize-1) != 0 {
+		val |= ^((1 << uint(d.bitSize)) - 1)
+	}
+	return val
+}
+
+func (d *decoder) extend32(val uint32, signed bool) uint32 {
+	if signed && d.bitSize != 0 && val&1<<uint(d.bitSize-1) != 0 {
+		val |= ^((1 << uint(d.bitSize)) - 1)
+	}
+	return val
+}
+
+func (d *decoder) extend64(val uint64, signed bool) uint64 {
+	if signed && d.bitSize != 0 && val&(1<<uint(d.bitSize-1)) != 0 {
+		val |= ^((1 << uint(d.bitSize)) - 1)
+	}
+	return val
+}
+
+func (d *decoder) read8(f field, extend bool) uint8 {
 	b := make([]byte, 1)
 	d.readBits(f, b)
-	return uint8(b[0])
+	return d.extend8(uint8(b[0]), extend)
 }
 
-func (d *decoder) read16(f field) uint16 {
+func (d *decoder) read16(f field, extend bool) uint16 {
 	b := make([]byte, 2)
 	d.readBits(f, b)
-	return d.order.Uint16(b)
+	return d.extend16(d.order.Uint16(b), extend)
 }
 
-func (d *decoder) read32(f field) uint32 {
+func (d *decoder) read32(f field, extend bool) uint32 {
 	b := make([]byte, 4)
 	d.readBits(f, b)
-	return d.order.Uint32(b)
+	return d.extend32(d.order.Uint32(b), extend)
 }
 
-func (d *decoder) read64(f field) uint64 {
+func (d *decoder) read64(f field, extend bool) uint64 {
 	b := make([]byte, 8)
 	d.readBits(f, b)
-	return d.order.Uint64(b)
+	return d.extend64(d.order.Uint64(b), extend)
 }
 
-func (d *decoder) readS8(f field) int8 { return int8(d.read8(f)) }
+func (d *decoder) readU8(f field) uint8 { return uint8(d.read8(f, false)) }
 
-func (d *decoder) readS16(f field) int16 { return int16(d.read16(f)) }
+func (d *decoder) readU16(f field) uint16 { return uint16(d.read16(f, false)) }
 
-func (d *decoder) readS32(f field) int32 { return int32(d.read32(f)) }
+func (d *decoder) readU32(f field) uint32 { return uint32(d.read32(f, false)) }
 
-func (d *decoder) readS64(f field) int64 { return int64(d.read64(f)) }
+func (d *decoder) readU64(f field) uint64 { return uint64(d.read64(f, false)) }
+
+func (d *decoder) readS8(f field) int8 { return int8(d.read8(f, true)) }
+
+func (d *decoder) readS16(f field) int16 { return int16(d.read16(f, true)) }
+
+func (d *decoder) readS32(f field) int32 { return int32(d.read32(f, true)) }
+
+func (d *decoder) readS64(f field) int64 { return int64(d.read64(f, true)) }
 
 func (d *decoder) readBytes(count int) []byte {
 	x := d.buf[0:count]
@@ -382,28 +426,28 @@ func (d *decoder) read(f field, v reflect.Value) {
 		d.setInt(f, v, d.readS64(f))
 
 	case reflect.Uint8, reflect.Bool:
-		d.setUint(f, v, uint64(d.read8(f)))
+		d.setUint(f, v, uint64(d.readU8(f)))
 	case reflect.Uint16:
-		d.setUint(f, v, uint64(d.read16(f)))
+		d.setUint(f, v, uint64(d.readU16(f)))
 	case reflect.Uint32:
-		d.setUint(f, v, uint64(d.read32(f)))
+		d.setUint(f, v, uint64(d.readU32(f)))
 	case reflect.Uint64:
-		d.setUint(f, v, d.read64(f))
+		d.setUint(f, v, d.readU64(f))
 
 	case reflect.Float32:
-		v.SetFloat(float64(math.Float32frombits(d.read32(f))))
+		v.SetFloat(float64(math.Float32frombits(d.read32(f, false))))
 	case reflect.Float64:
-		v.SetFloat(math.Float64frombits(d.read64(f)))
+		v.SetFloat(math.Float64frombits(d.read64(f, false)))
 
 	case reflect.Complex64:
 		v.SetComplex(complex(
-			float64(math.Float32frombits(d.read32(f))),
-			float64(math.Float32frombits(d.read32(f))),
+			float64(math.Float32frombits(d.read32(f, false))),
+			float64(math.Float32frombits(d.read32(f, false))),
 		))
 	case reflect.Complex128:
 		v.SetComplex(complex(
-			math.Float64frombits(d.read64(f)),
-			math.Float64frombits(d.read64(f)),
+			math.Float64frombits(d.read64(f, false)),
+			math.Float64frombits(d.read64(f, false)),
 		))
 	}
 
