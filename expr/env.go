@@ -36,7 +36,10 @@ func NewTypeResolverAdapter(r Resolver) *TypeResolverAdapter {
 
 // TypeResolve implements TypeResolver.
 func (r *TypeResolverAdapter) TypeResolve(ident string) Type {
-	return r.Resolve(ident).Type()
+	if v := r.Resolve(ident); v != nil {
+		return v.Type()
+	}
+	return nil
 }
 
 // MetaTypeResolver runs multiple type resolvers serially.
