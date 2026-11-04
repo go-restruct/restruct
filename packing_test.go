@@ -55,7 +55,7 @@ func TestUnpack(t *testing.T) {
 				D int8 `struct:"int8:3"`
 			}{
 				A: 0x02,
-				B: 0x02,
+				B: -0x02,
 				C: -0x56,
 				D: -0x03,
 			},
