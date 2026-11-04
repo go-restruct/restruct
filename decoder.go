@@ -77,21 +77,21 @@ func (d *decoder) readBits(f field, outBuf []byte) {
 }
 
 func (d *decoder) extend8(val uint8, signed bool) uint8 {
-	if signed && d.bitSize != 0 && val&1<<uint(d.bitSize-1) != 0 {
+	if signed && d.bitSize != 0 && val&(1<<uint(d.bitSize-1)) != 0 {
 		val |= ^((1 << uint(d.bitSize)) - 1)
 	}
 	return val
 }
 
 func (d *decoder) extend16(val uint16, signed bool) uint16 {
-	if signed && d.bitSize != 0 && val&1<<uint(d.bitSize-1) != 0 {
+	if signed && d.bitSize != 0 && val&(1<<uint(d.bitSize-1)) != 0 {
 		val |= ^((1 << uint(d.bitSize)) - 1)
 	}
 	return val
 }
 
 func (d *decoder) extend32(val uint32, signed bool) uint32 {
-	if signed && d.bitSize != 0 && val&1<<uint(d.bitSize-1) != 0 {
+	if signed && d.bitSize != 0 && val&(1<<uint(d.bitSize-1)) != 0 {
 		val |= ^((1 << uint(d.bitSize)) - 1)
 	}
 	return val
